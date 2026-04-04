@@ -33,15 +33,6 @@ type WaifuManyImage = {
 const SFW_CATEGORIES = ["waifu", "neko", "shinobu", "megumin", "bully", "cuddle", "cry", "hug", "awoo", "kiss", "lick", "pat", "smug", "bonk", "yeet", "blush", "smile", "wave", "highfive", "handhold", "nom", "bite", "glomp", "slap", "kill", "kick", "happy", "wink", "poke", "dance", "cringe"];
 const NSFW_CATEGORIES = ["waifu", "neko", "trap", "blowjob"];
 
-const FILTERS = [
-    { name: "None", class: "" },
-    { name: "Grayscale", class: "grayscale" },
-    { name: "Sepia", class: "sepia" },
-    { name: "Invert", class: "invert" },
-    { name: "Saturate", class: "saturate-200" },
-    { name: "Blur", class: "blur-sm" },
-];
-
 export default function Home() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isNsfw, setIsNsfw] = useState(false);
@@ -50,7 +41,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const [filter, setFilter] = useState("none");
 
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isGalleryLoading, startGalleryLoading] = useTransition();
@@ -212,8 +202,7 @@ export default function Home() {
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className={cn(
-                  "object-contain transition-all duration-300 opacity-0",
-                   FILTERS.find(f => f.name.toLowerCase() === filter)?.class
+                  "object-contain transition-all duration-300 opacity-0"
                 )}
                 onLoadingComplete={(image) => image.classList.remove("opacity-0")}
               />
@@ -225,23 +214,6 @@ export default function Home() {
             )}
           </div>
           
-          <div className="mt-4">
-            <Label className="text-center block mb-3 text-sm font-medium text-muted-foreground">Image Filters</Label>
-            <div className="flex flex-wrap gap-2 justify-center">
-                {FILTERS.map((f) => (
-                    <Button
-                        key={f.name}
-                        variant={filter === f.name.toLowerCase() ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setFilter(f.name.toLowerCase())}
-                        className="transition-transform active:scale-95"
-                    >
-                        {f.name}
-                    </Button>
-                ))}
-            </div>
-          </div>
-
           <div className="flex gap-4 mt-6 justify-center">
             <Button variant="outline" onClick={() => handleImageDownload(imageUrl)} disabled={!imageUrl || isLoading || isGenerating} className="transition-transform active:scale-95">
               <Download className="mr-2 h-4 w-4" />
