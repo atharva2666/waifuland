@@ -115,25 +115,30 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNsfw, category]);
 
-  const handleDownload = async () => {
-    if (!imageUrl) return;
+  const handleImageDownload = async (url: string | null) => {
+    if (!url) return;
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(url);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = imageUrl.split("/").pop() || "waifu.jpg";
+      a.href = blobUrl;
+      a.download = url.split("/").pop() || "waifu.jpg";
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
+      toast({
+        title: "Download Started",
+        description: `Downloading ${a.download}.`,
+      });
     } catch (e) {
-      console.error("Download failed", e);
+      console.error("Download failed, falling back to new tab", e);
+      window.open(url, "_blank");
       toast({
         variant: "destructive",
         title: "Download failed",
-        description: "Could not download the image.",
+        description: "Could not download automatically. A new tab has been opened for manual saving.",
       });
     }
   };
@@ -210,7 +215,7 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4 mt-6 justify-center">
-            <Button variant="outline" onClick={handleDownload} disabled={!imageUrl || isLoading || isGenerating} className="transition-transform active:scale-95">
+            <Button variant="outline" onClick={() => handleImageDownload(imageUrl)} disabled={!imageUrl || isLoading || isGenerating} className="transition-transform active:scale-95">
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>
@@ -234,6 +239,17 @@ export default function Home() {
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 17vw"
                   />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleImageDownload(imgUrl)}
+                      className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm -translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-in-out"
+                    >
+                      <Download className="h-5 w-5" />
+                      <span className="sr-only">Download</span>
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
