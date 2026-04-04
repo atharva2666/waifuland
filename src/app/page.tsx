@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Loader2,
   Image as ImageIcon,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,10 +32,17 @@ import {
 import { getAnimeDetails } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { generateStory } from "@/ai/flows/story-flow";
 
 type WaifuImage = {
   url: string;
 };
+
+type WaifuManyImage = {
+  files: string[];
+}
 
 type AnimeDetails = Awaited<ReturnType<typeof getAnimeDetails>>;
 
@@ -52,6 +60,13 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const { toast } = useToast();
+
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [isGalleryLoading, startGalleryLoading] = useTransition();
+
+  const [story, setStory] = useState<string | null>(null);
+  const [storyPrompt, setStoryPrompt] = useState("");
+  const [isStoryLoading, startStoryLoading] = useTransition();
 
   const availableCategories = isNsfw ? NSFW_CATEGORIES : SFW_CATEGORIES;
 
@@ -83,11 +98,45 @@ export default function Home() {
       setIsLoading(false);
     }
   }, [isNsfw, category, availableCategories, toast]);
+
+  const fetchGalleryImages = useCallback((isInitial: boolean, currentImages: string[]) => {
+    startGalleryLoading(async () => {
+       try {
+        const type = isNsfw ? "nsfw" : "sfw";
+        const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
+
+        const response = await fetch(`https://api.waifu.pics/many/${type}/${currentCategory}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exclude: isInitial ? [] : currentImages })
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch gallery images (status: ${response.status}).`);
+        }
+        const data: WaifuManyImage = await response.json();
+        
+        if (isInitial) {
+          setGalleryImages(data.files);
+        } else {
+          setGalleryImages(prev => [...prev, ...data.files]);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "An unknown error occurred.";
+        toast({
+          variant: "destructive",
+          title: "Could not load gallery.",
+          description: message,
+        });
+      }
+    });
+  }, [isNsfw, category, availableCategories, toast, startGalleryLoading]);
   
   useEffect(() => {
     startGenerating(() => {
       fetchImage();
     });
+    fetchGalleryImages(true, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNsfw, category]);
 
   const handleDownload = async () => {
@@ -115,6 +164,8 @@ export default function Home() {
 
   const handleShowDetails = () => {
     if (!imageUrl) return;
+    setStory(null);
+    setStoryPrompt('');
     startDetailsLoading(async () => {
       setAnimeDetails(null);
       try {
@@ -130,6 +181,24 @@ export default function Home() {
       }
     });
   };
+
+  const handleGenerateStory = () => {
+    if (!imageUrl) return;
+    setStory(null);
+    startStoryLoading(async () => {
+        try {
+            const result = await generateStory({ imageUrl, prompt: storyPrompt });
+            setStory(result.story);
+        } catch (e) {
+            console.error(e);
+            toast({
+                variant: "destructive",
+                title: "Story generation failed",
+                description: "Could not generate a story for this image.",
+            });
+        }
+    });
+  };
   
   const handleGenerateClick = () => {
       startGenerating(() => {
@@ -139,90 +208,122 @@ export default function Home() {
 
   return (
     <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-      <main className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8 font-body">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-2 tracking-tight">
-            WaifuVault
-          </h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Discover a new anime character image with every click. Find out which anime they are from and more.
-          </p>
-        </div>
-
-        <div className="w-full max-w-md lg:max-w-lg bg-card p-6 rounded-2xl shadow-lg border">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-6">
-            <div className="flex items-center space-x-2 justify-center sm:justify-start">
-              <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={(checked) => {
-                  const newCategory = (checked ? NSFW_CATEGORIES : SFW_CATEGORIES)[0];
-                  setIsNsfw(checked);
-                  setCategory(newCategory);
-              }} />
-              <Label htmlFor="nsfw-toggle">NSFW</Label>
-            </div>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full">
-              {isGenerating || isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Generate
-            </Button>
+      <div className="bg-background text-foreground font-body">
+        <main className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-2 tracking-tight">
+              WaifuVault
+            </h1>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Discover a new anime character image with every click. Find out which anime they are from and more.
+            </p>
           </div>
 
-          <DialogTrigger asChild>
-            <button type="button" onClick={handleShowDetails} className="block w-full aspect-square relative bg-muted rounded-lg overflow-hidden cursor-pointer group focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background">
-              {isLoading || isGenerating ? (
-                <Skeleton className="w-full h-full" />
-              ) : imageUrl ? (
-                <Image
-                  key={imageUrl}
-                  src={imageUrl}
-                  alt="Waifu"
-                  fill
-                  className="object-contain transition-opacity duration-500 opacity-0 group-hover:opacity-80"
-                  onLoadingComplete={(image) => image.classList.remove("opacity-0")}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                  <ImageIcon className="w-16 h-16 mb-4" />
-                  <p className="text-center">{error || "No image to display"}</p>
-                </div>
-              )}
-               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <Info className="h-8 w-8 text-white" />
+          <div className="w-full max-w-md lg:max-w-lg bg-card p-6 rounded-2xl shadow-lg border">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-6">
+              <div className="flex items-center space-x-2 justify-center sm:justify-start">
+                <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={(checked) => {
+                    const newCategory = (checked ? NSFW_CATEGORIES : SFW_CATEGORIES)[0];
+                    setIsNsfw(checked);
+                    setCategory(newCategory);
+                }} />
+                <Label htmlFor="nsfw-toggle">NSFW</Label>
               </div>
-            </button>
-          </DialogTrigger>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full">
+                {isGenerating || isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Generate
+              </Button>
+            </div>
 
-          <div className="flex gap-4 mt-6 justify-center">
-            <Button variant="outline" onClick={handleDownload} disabled={!imageUrl || isLoading || isGenerating}>
-              <Download className="mr-2 h-4 w-4" />
-              Download
-            </Button>
+            <DialogTrigger asChild>
+              <button type="button" onClick={handleShowDetails} className="block w-full aspect-square relative bg-muted rounded-lg overflow-hidden cursor-pointer group focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background">
+                {isLoading || isGenerating ? (
+                  <Skeleton className="w-full h-full" />
+                ) : imageUrl ? (
+                  <Image
+                    key={imageUrl}
+                    src={imageUrl}
+                    alt="Waifu"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-contain transition-opacity duration-500 opacity-0 group-hover:opacity-80"
+                    onLoadingComplete={(image) => image.classList.remove("opacity-0")}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <ImageIcon className="w-16 h-16 mb-4" />
+                    <p className="text-center">{error || "No image to display"}</p>
+                  </div>
+                )}
+                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <Info className="h-8 w-8 text-white" />
+                </div>
+              </button>
+            </DialogTrigger>
+
+            <div className="flex gap-4 mt-6 justify-center">
+              <Button variant="outline" onClick={handleDownload} disabled={!imageUrl || isLoading || isGenerating}>
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </Button>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      <DialogContent className="sm:max-w-md">
+        <section className="pb-16">
+          <div className="w-full max-w-7xl mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-8 text-primary">Lobby</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {(isGalleryLoading && galleryImages.length === 0) ? (
+                Array.from({ length: 30 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-lg" />)
+              ) : (
+                galleryImages.map((imgUrl, index) => (
+                  <div key={`${imgUrl}-${index}`} className="relative aspect-square rounded-lg overflow-hidden group border">
+                    <Image
+                      src={imgUrl}
+                      alt={`Gallery image ${index + 1}`}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 17vw"
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+             <div className="text-center mt-8">
+              <Button onClick={() => fetchGalleryImages(false, galleryImages)} disabled={isGalleryLoading}>
+                {isGalleryLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Load More
+              </Button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Anime Details</DialogTitle>
+          <DialogTitle>Details</DialogTitle>
           <DialogDescription>
-            Information about the anime this character is from. Accuracy may vary.
+            Information about the anime this character is from, and more.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-4 max-h-[80vh] overflow-y-auto pr-2">
           {isDetailsLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-4 w-3/4" />
@@ -259,7 +360,38 @@ export default function Home() {
                 </p>
             </div>
           ) : (
-            <p>No details found. Try another image.</p>
+            <p>No anime details found. This character may be an original artwork.</p>
+          )}
+
+          <Separator className="my-6" />
+
+          <div>
+            <h3 className="font-semibold text-primary mb-3">AI Story Generator</h3>
+            <div className="space-y-3">
+              <Textarea
+                placeholder="Optional: Provide a theme for the story (e.g., a lonely cyborg finds a friend)"
+                value={storyPrompt}
+                onChange={(e) => setStoryPrompt(e.target.value)}
+              />
+              <Button onClick={handleGenerateStory} disabled={isStoryLoading || !imageUrl} className="w-full">
+                {isStoryLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate Story
+              </Button>
+            </div>
+          </div>
+          
+          {isStoryLoading && (
+              <div className="space-y-2 mt-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+              </div>
+          )}
+
+          {story && (
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg border text-sm">
+                  <p className="whitespace-pre-wrap font-body">{story}</p>
+              </div>
           )}
         </div>
       </DialogContent>
