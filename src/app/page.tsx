@@ -115,30 +115,27 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNsfw, category]);
 
-  const handleImageDownload = async (url: string | null) => {
+  const handleImageDownload = (url: string | null) => {
     if (!url) return;
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = blobUrl;
+      a.href = url;
       a.download = url.split("/").pop() || "waifu.jpg";
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(a);
       toast({
-        title: "Download Started",
-        description: `Downloading ${a.download}.`,
+        title: "Download Initiated",
+        description: "Your image is being downloaded.",
       });
-    } catch (e) {
-      console.error("Download failed, falling back to new tab", e);
+    } catch (error) {
+      console.error("Download attempt failed:", error);
+      // Fallback for any unexpected errors
       window.open(url, "_blank");
       toast({
         variant: "destructive",
-        title: "Download failed",
-        description: "Could not download automatically. A new tab has been opened for manual saving.",
+        title: "Oh no! Something went wrong.",
+        description: "Could not start download. The image has been opened in a new tab for you to save manually.",
       });
     }
   };
