@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
+import { Poppins } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['400', '600', '700'],
+  variable: '--font-poppins',
+});
 
 export const metadata: Metadata = {
   title: 'WaifuVault',
@@ -14,12 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased bg-background">
+      <body className={`${poppins.variable} font-body antialiased bg-background`}>
         {children}
         <Toaster />
       </body>

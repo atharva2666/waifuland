@@ -158,7 +158,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="w-full max-w-md lg:max-w-lg bg-[hsl(var(--card)/0.5)] backdrop-blur-xl p-6 rounded-2xl shadow-lg border border-[hsl(var(--border)/0.2)]">
+        <div className="w-full max-w-md lg:max-w-lg bg-background p-6 rounded-2xl shadow-lg border border-border">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-6">
             <div className="flex items-center space-x-2 justify-center sm:justify-start">
               <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={(checked) => {
@@ -199,6 +199,7 @@ export default function Home() {
                 src={imageUrl}
                 alt="Waifu"
                 fill
+                priority
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className={cn(
                   "object-contain transition-all duration-300 opacity-0"
