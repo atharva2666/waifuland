@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Loader2,
   Image as ImageIcon,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,9 +20,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Textarea } from "@/components/ui/textarea";
-import { generateStory } from "@/ai/flows/story-flow";
-import { Separator } from "@/components/ui/separator";
 
 type WaifuImage = {
   url: string;
@@ -33,7 +29,7 @@ type WaifuManyImage = {
   files: string[];
 }
 
-const SFW_CATEGORIES = ["waifu", "neko", "shinobu", "megumin", "bully", "cuddle", "cry", "hug", "awoo", "kiss", "lick", "pat", "smug"];
+const SFW_CATEGORIES = ["waifu", "neko", "shinobu", "megumin", "bully", "cuddle", "cry", "hug", "awoo", "kiss", "lick", "pat", "smug", "bonk", "yeet", "blush", "smile", "wave", "highfive", "handhold", "nom", "bite", "glomp", "slap", "kill", "kick", "happy", "wink", "poke", "dance", "cringe"];
 const NSFW_CATEGORIES = ["waifu", "neko", "trap", "blowjob"];
 
 export default function Home() {
@@ -48,16 +44,11 @@ export default function Home() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isGalleryLoading, startGalleryLoading] = useTransition();
 
-  const [story, setStory] = useState<string | null>(null);
-  const [storyPrompt, setStoryPrompt] = useState("");
-  const [isStoryLoading, startStoryLoading] = useTransition();
-
   const availableCategories = isNsfw ? NSFW_CATEGORIES : SFW_CATEGORIES;
 
   const fetchImage = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setStory(null); // Clear story on new image
     try {
       const type = isNsfw ? "nsfw" : "sfw";
       const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
@@ -146,24 +137,6 @@ export default function Home() {
       });
     }
   };
-
-  const handleGenerateStory = () => {
-    if (!imageUrl) return;
-    setStory(null);
-    startStoryLoading(async () => {
-        try {
-            const result = await generateStory({ imageUrl, prompt: storyPrompt });
-            setStory(result.story);
-        } catch (e) {
-            console.error(e);
-            toast({
-                variant: "destructive",
-                title: "Story generation failed",
-                description: "Could not generate a story for this image.",
-            });
-        }
-    });
-  };
   
   const handleGenerateClick = () => {
       startGenerating(() => {
@@ -179,7 +152,7 @@ export default function Home() {
             WaifuVault
           </h1>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Discover a new anime character image with every click. Generate an AI story for them.
+            Discover a new anime character image with every click.
           </p>
         </div>
 
@@ -205,7 +178,7 @@ export default function Home() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full">
+            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full transition-transform active:scale-95">
               {isGenerating || isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -237,43 +210,11 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4 mt-6 justify-center">
-            <Button variant="outline" onClick={handleDownload} disabled={!imageUrl || isLoading || isGenerating}>
+            <Button variant="outline" onClick={handleDownload} disabled={!imageUrl || isLoading || isGenerating} className="transition-transform active:scale-95">
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>
           </div>
-          
-          <Separator className="my-6" />
-
-          <div>
-            <h3 className="font-semibold text-primary mb-3 text-center">AI Story Generator</h3>
-            <div className="space-y-3">
-              <Textarea
-                placeholder="Optional: Provide a theme for the story (e.g., a lonely cyborg finds a friend)"
-                value={storyPrompt}
-                onChange={(e) => setStoryPrompt(e.target.value)}
-              />
-              <Button onClick={handleGenerateStory} disabled={isStoryLoading || !imageUrl} className="w-full">
-                {isStoryLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Generate Story
-              </Button>
-            </div>
-          </div>
-          
-          {isStoryLoading && (
-              <div className="space-y-2 mt-4">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-4/5" />
-              </div>
-          )}
-
-          {story && (
-              <div className="mt-4 p-3 bg-muted/50 rounded-lg border text-sm">
-                  <p className="whitespace-pre-wrap font-body">{story}</p>
-              </div>
-          )}
-
         </div>
       </main>
 
@@ -298,7 +239,7 @@ export default function Home() {
             )}
           </div>
            <div className="text-center mt-8">
-            <Button onClick={() => fetchGalleryImages(false, galleryImages)} disabled={isGalleryLoading}>
+            <Button onClick={() => fetchGalleryImages(false, galleryImages)} disabled={isGalleryLoading} className="transition-transform active:scale-95">
               {isGalleryLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Load More
             </Button>
