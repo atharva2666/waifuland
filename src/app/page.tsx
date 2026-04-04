@@ -121,6 +121,7 @@ export default function Home() {
     try {
       const a = document.createElement("a");
       a.href = url;
+      a.target = "_blank";
       a.download = url.split("/").pop() || "waifu.jpg";
       document.body.appendChild(a);
       a.click();
@@ -131,12 +132,10 @@ export default function Home() {
       });
     } catch (error) {
       console.error("Download attempt failed:", error);
-      // Fallback for any unexpected errors
-      window.open(url, "_blank");
       toast({
         variant: "destructive",
         title: "Oh no! Something went wrong.",
-        description: "Could not start download. The image has been opened in a new tab for you to save manually.",
+        description: "Could not start download. Please try again.",
       });
     }
   };
@@ -148,18 +147,18 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-background text-foreground font-body">
+    <div className="text-foreground font-body">
       <main className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-2 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-bold font-headline text-white mb-2 tracking-tight drop-shadow-lg">
             WaifuVault
           </h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
+          <p className="text-white/80 max-w-md mx-auto drop-shadow-md">
             Discover a new anime character image with every click.
           </p>
         </div>
 
-        <div className="w-full max-w-md lg:max-w-lg bg-card p-6 rounded-2xl shadow-lg border">
+        <div className="w-full max-w-md lg:max-w-lg bg-[hsl(var(--card)/0.5)] backdrop-blur-xl p-6 rounded-2xl shadow-lg border border-[hsl(var(--border)/0.2)]">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-6">
             <div className="flex items-center space-x-2 justify-center sm:justify-start">
               <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={(checked) => {
@@ -191,7 +190,7 @@ export default function Home() {
             </Button>
           </div>
 
-          <div className="block w-full aspect-square relative bg-muted rounded-lg overflow-hidden">
+          <div className="block w-full aspect-square relative bg-black/20 rounded-lg overflow-hidden">
             {isLoading || isGenerating ? (
               <Skeleton className="w-full h-full" />
             ) : imageUrl ? (
@@ -225,13 +224,13 @@ export default function Home() {
 
       <section className="pb-16">
         <div className="w-full max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8 text-primary">Lobby</h2>
+          <h2 className="text-3xl font-bold text-center mb-8 text-white drop-shadow-lg">Lobby</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {(isGalleryLoading && galleryImages.length === 0) ? (
               Array.from({ length: 30 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-lg" />)
             ) : (
               galleryImages.map((imgUrl, index) => (
-                <div key={`${imgUrl}-${index}`} className="relative aspect-square rounded-lg overflow-hidden group border">
+                <div key={`${imgUrl}-${index}`} className="relative aspect-square rounded-lg overflow-hidden group border border-white/10">
                   <Image
                     src={imgUrl}
                     alt={`Gallery image ${index + 1}`}
