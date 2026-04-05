@@ -31,8 +31,9 @@ type WaifuImResponse = {
   images: WaifuImImage[];
 }
 
-const SFW_CATEGORIES = ["waifu", "maid", "oppai", "selfies", "uniform"];
-const NSFW_CATEGORIES = ["ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero"];
+const SFW_CATEGORIES = ["waifu", "maid", "uniform", "selfies", "marin-kitagawa", "raiden-shogun"];
+const NSFW_CATEGORIES = ["ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero", "oppai"];
+
 
 export default function Home() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -176,7 +177,9 @@ export default function Home() {
               <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={(checked) => {
                   setIsNsfw(checked);
                   const newCategories = checked ? NSFW_CATEGORIES : SFW_CATEGORIES;
-                  setCategory(newCategories[0]);
+                  if (!newCategories.includes(category)) {
+                    setCategory(newCategories[0]);
+                  }
               }} />
               <Label htmlFor="nsfw-toggle">NSFW</Label>
             </div>
@@ -187,7 +190,7 @@ export default function Home() {
               <SelectContent>
                 {availableCategories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' ')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -277,3 +280,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
