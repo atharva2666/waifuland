@@ -31,8 +31,8 @@ type WaifuImResponse = {
   images: WaifuImImage[];
 }
 
-const SFW_CATEGORIES = ["waifu", "maid", "uniform", "selfies", "marin-kitagawa", "raiden-shogun"];
-const NSFW_CATEGORIES = ["ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero", "oppai"];
+const SFW_CATEGORIES = ["waifu", "maid", "uniform", "selfies", "marin-kitagawa", "raiden-shogun", "mori-calliope", "oppai"];
+const NSFW_CATEGORIES = ["ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero"];
 
 
 export default function Home() {
@@ -57,7 +57,6 @@ export default function Home() {
       const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
       const params = new URLSearchParams({
         included_tags: currentCategory,
-        is_nsfw: isNsfw.toString(),
       });
       
       const response = await fetch(`https://api.waifu.im/search?${params}`);
@@ -84,7 +83,7 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, [isNsfw, category, availableCategories, toast]);
+  }, [category, availableCategories, toast]);
 
   const fetchGalleryImages = useCallback((isInitial: boolean) => {
     startGalleryLoading(async () => {
@@ -92,7 +91,6 @@ export default function Home() {
         const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
         const params = new URLSearchParams({
             included_tags: currentCategory,
-            is_nsfw: isNsfw.toString(),
             many: 'true'
         });
 
@@ -119,7 +117,7 @@ export default function Home() {
         });
       }
     });
-  }, [isNsfw, category, availableCategories, toast]);
+  }, [category, availableCategories, toast]);
   
   useEffect(() => {
     startGenerating(() => {
@@ -280,5 +278,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
