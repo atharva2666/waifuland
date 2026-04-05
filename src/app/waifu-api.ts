@@ -151,8 +151,54 @@ const nekosBestApi: ImageApiSource = {
   },
 };
 
+// --- Nekobot.xyz Implementation ---
+const nekobotApi: ImageApiSource = {
+  name: 'Nekobot.xyz',
+  hasNsfw: true,
+  async getTags() {
+    // Nekobot does not provide a public endpoint for tags, so we use a hardcoded list.
+    const sfw = ['kemonomimi', 'neko', 'kanna', 'holo', 'kitsune'];
+    const nsfw = ['hass', 'pgif', 'hentai', 'hthigh', 'hmidriff', 'paizuri', 'hneko', 'hkitsune', 'hboobs', 'hanal', 'pussy', 'lewd', 'les', 'lewdk', 'cum', 'feet', 'yuri', 'eroyuri', 'erok', 'blowjob', 'erofeet', 'yaoi'];
+    return Promise.resolve({ sfw: sfw.sort(), nsfw: nsfw.sort() });
+  },
+  async getImages(params) {
+    const { category, count } = params;
+    if (!category) {
+      return { success: false, images: [], message: 'No category selected.' };
+    }
+
+    // This API returns one image per call, so we make 'count' requests in parallel.
+    const url = `https://nekobot.xyz/api/image?type=${category}`;
+    try {
+      const imagePromises = Array.from({ length: count }).map(() => fetch(url, { cache: 'no-store' }));
+      const responses = await Promise.all(imagePromises);
+      
+      const imageUrls: string[] = [];
+      for (const response of responses) {
+        if (response.ok) {
+          const data = await response.json();
+          // The URL is in the 'message' field
+          if (data.success && data.message) {
+            imageUrls.push(data.message);
+          }
+        }
+      }
+
+      if (imageUrls.length === 0) {
+        return { success: true, images: [], message: 'No images found for this selection.' };
+      }
+      return { success: true, images: [...new Set(imageUrls)] }; // Remove duplicates
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("Nekobot.xyz getImages error:", message);
+      return { success: false, images: [], message };
+    }
+  },
+};
+
 export const apiSources: { [key: string]: ImageApiSource } = {
   'waifu.pics': waifuPicsApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
+  'Nekobot.xyz': nekobotApi,
 };
