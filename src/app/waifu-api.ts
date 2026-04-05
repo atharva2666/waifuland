@@ -40,10 +40,11 @@ export async function loadTags(): Promise<{ versatile: string[], nsfw: string[] 
     }
     const data: WaifuImTagsResponse = await response.json();
     
-    nsfwTags = new Set(data.nsfw);
-    versatileTags = data.versatile.sort();
+    // Add defensive checks to prevent crash if API response is malformed
+    nsfwTags = new Set(data.nsfw || []);
+    versatileTags = (data.versatile || []).sort();
 
-    return { versatile: versatileTags, nsfw: data.nsfw.sort() };
+    return { versatile: versatileTags, nsfw: (data.nsfw || []).sort() };
   } catch (error) {
     console.error("Error loading tags:", error);
     // Return a hardcoded fallback if the API fails
