@@ -46,18 +46,6 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: 'cdn.nekobot.xyz',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'i0.nekobot.xyz',
-        port: '',
-        pathname: '/**',
-      }
     ],
   },
 };
