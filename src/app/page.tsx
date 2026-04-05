@@ -31,7 +31,7 @@ type WaifuImResponse = {
   images: WaifuImImage[];
 }
 
-const ALL_CATEGORIES = [
+const SFW_CATEGORIES = [
   "waifu",
   "maid",
   "uniform",
@@ -39,7 +39,9 @@ const ALL_CATEGORIES = [
   "marin-kitagawa",
   "raiden-shogun",
   "mori-calliope",
-  "oppai",
+];
+
+const NSFW_CATEGORIES = [
   "ass",
   "hentai",
   "milf",
@@ -47,7 +49,10 @@ const ALL_CATEGORIES = [
   "paizuri",
   "ecchi",
   "ero",
-].sort();
+  "oppai",
+];
+
+const ALL_CATEGORIES = [...SFW_CATEGORIES, ...NSFW_CATEGORIES].sort();
 
 
 export default function Home() {
@@ -62,16 +67,17 @@ export default function Home() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isGalleryLoading, startGalleryLoading] = useTransition();
 
-  const availableCategories = ALL_CATEGORIES;
+  const isCategoryNsfw = NSFW_CATEGORIES.includes(category);
 
   const fetchImage = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
+      const isRequestNsfw = isCategoryNsfw || isNsfw;
       const params = new URLSearchParams({
         included_tags: category,
-        is_nsfw: String(isNsfw)
+        is_nsfw: String(isRequestNsfw)
       });
       
       const response = await fetch(`https://api.waifu.im/search?${params}`);
@@ -86,7 +92,7 @@ export default function Home() {
         setImageUrl(data.images[0].url);
       } else {
         setImageUrl(null);
-        setError(`No images found for category: ${category}` + (isNsfw ? ' (NSFW)' : ' (SFW)'));
+        setError(`No images found for category: ${category}` + (isRequestNsfw ? ' (NSFW)' : ' (SFW)'));
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -99,15 +105,16 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, [category, isNsfw, toast]);
+  }, [category, isNsfw, toast, isCategoryNsfw]);
 
   const fetchGalleryImages = useCallback((isInitial: boolean) => {
     startGalleryLoading(async () => {
        try {
+        const isRequestNsfw = isCategoryNsfw || isNsfw;
         const params = new URLSearchParams({
             included_tags: category,
             many: 'true',
-            is_nsfw: String(isNsfw)
+            is_nsfw: String(isRequestNsfw)
         });
 
         const response = await fetch(`https://api.waifu.im/search?${params}`);
@@ -122,7 +129,7 @@ export default function Home() {
         if (urls.length === 0 && isInitial) {
              toast({
                 title: "No gallery images found",
-                description: `No images found for category: ${category}` + (isNsfw ? ' (NSFW)' : ' (SFW)'),
+                description: `No images found for category: ${category}` + (isRequestNsfw ? ' (NSFW)' : ' (SFW)'),
             });
         }
 
@@ -140,7 +147,7 @@ export default function Home() {
         });
       }
     });
-  }, [category, isNsfw, toast]);
+  }, [category, isNsfw, toast, isCategoryNsfw]);
   
   useEffect(() => {
     startGenerating(() => {
@@ -181,10 +188,10 @@ export default function Home() {
   };
   
   return (
-    <div className="text-foreground font-body bg-background">
+    <div className="min-h-screen w-full bg-background text-foreground font-body">
       <main className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold font-headline text-white mb-2 tracking-tight drop-shadow-lg">
+          <h1 className="text-4xl md:text-5xl font-bold font-headline text-white mb-2 tracking-tight drop-shadow-lg [text-shadow:_0_4px_8px_rgba(0,0,0,0.3)]">
             WaifuVault
           </h1>
           <p className="text-white/80 max-w-md mx-auto drop-shadow-md">
@@ -192,10 +199,10 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="w-full max-w-md lg:max-w-lg bg-card/60 backdrop-blur-xl p-6 rounded-2xl shadow-lg border border-border/20">
+        <div className="w-full max-w-md lg:max-w-lg bg-white/10 backdrop-blur-2xl p-6 rounded-2xl shadow-2xl border border-white/20">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-6">
             <div className="flex items-center space-x-2 justify-center sm:justify-start">
-              <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
+              <Switch id="nsfw-toggle" checked={isNsfw || isCategoryNsfw} onCheckedChange={setIsNsfw} disabled={isCategoryNsfw}/>
               <Label htmlFor="nsfw-toggle">NSFW</Label>
             </div>
             <Select value={category} onValueChange={setCategory}>
@@ -203,14 +210,14 @@ export default function Home() {
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                {availableCategories.map((cat) => (
+                {ALL_CATEGORIES.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' ')}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
+            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full transition-transform active:scale-95 bg-pink-500/80 hover:bg-pink-500 text-white font-bold">
               {isGenerating || isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -220,7 +227,7 @@ export default function Home() {
             </Button>
           </div>
 
-          <div className="block w-full aspect-square relative bg-black/20 rounded-lg overflow-hidden border-2 border-border/20">
+          <div className="block w-full aspect-square relative bg-black/20 rounded-lg overflow-hidden border-2 border-white/20">
             {isLoading || isGenerating ? (
               <Skeleton className="w-full h-full" />
             ) : imageUrl ? (
@@ -255,10 +262,10 @@ export default function Home() {
 
       <section className="pb-16">
         <div className="w-full max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8 text-white drop-shadow-lg">Lobby</h2>
+          <h2 className="text-3xl font-bold text-center mb-8 text-white drop-shadow-lg [text-shadow:_0_4px_8px_rgba(0,0,0,0.3)]">Lobby</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {(isGalleryLoading && galleryImages.length === 0) ? (
-              Array.from({ length: 30 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-lg bg-card/60" />)
+              Array.from({ length: 30 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-lg bg-white/10" />)
             ) : (
               galleryImages.map((imgUrl, index) => (
                 <div key={`${imgUrl}-${index}`} className="relative aspect-square rounded-lg overflow-hidden group border border-white/10 shadow-lg">
@@ -269,7 +276,7 @@ export default function Home() {
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 17vw"
                   />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <Button
                       variant="outline"
                       size="icon"
@@ -285,7 +292,7 @@ export default function Home() {
             )}
           </div>
            <div className="text-center mt-8">
-            <Button onClick={() => fetchGalleryImages(false)} disabled={isGalleryLoading} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
+            <Button onClick={() => fetchGalleryImages(false)} disabled={isGalleryLoading} className="transition-transform active:scale-95 bg-pink-500/80 hover:bg-pink-500 text-white font-bold">
               {isGalleryLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Load More
             </Button>
@@ -295,3 +302,4 @@ export default function Home() {
     </div>
   );
 }
+    
