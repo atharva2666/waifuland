@@ -29,7 +29,11 @@ const waifuImApi: ImageApiSource = {
       const nsfw = data?.nsfw && Array.isArray(data.nsfw) ? data.nsfw.sort() : [];
       
       if (sfw.length === 0 && nsfw.length === 0) {
-        throw new Error("waifu.im returned no tags.");
+        console.warn("waifu.im returned no tags, using fallback.");
+        return {
+          sfw: ['waifu', 'maid', 'uniform', 'selfies', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun'],
+          nsfw: ['ero', 'ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'oppai'],
+        };
       }
       
       return { sfw, nsfw };
