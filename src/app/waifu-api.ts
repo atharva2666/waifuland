@@ -53,39 +53,45 @@ const waifuImApi: ImageApiSource = {
     }
   },
   async getImages(params) {
-    const { category } = params;
+    const { category, count } = params;
     let { isNsfw } = params;
 
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
 
-    // THE DEFINITIVE FIX:
-    // The root cause of the 404 errors is sending an invalid request to waifu.im.
-    // The API returns 404 if you request a tag from their 'nsfw' list with `is_nsfw=false`.
-    // This logic ensures that if an exclusively NSFW tag is selected, we FORCE `is_nsfw` to be true,
-    // overriding the user's toggle and preventing the invalid API call.
     if (waifuImNsfwTags.has(category)) {
       isNsfw = true;
     }
 
-    const url = `https://api.waifu.im/search?included_tags=${category}&is_nsfw=${isNsfw}&many=true`;
+    const url = `https://api.waifu.im/search?included_tags=${category}&is_nsfw=${isNsfw}`;
 
     try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (!response.ok) {
-         if (response.status === 404) {
-             return { success: true, images: [], message: `No images found for '${category}'. It may not exist or has no images for the current SFW/NSFW setting.` };
+      const imagePromises = Array.from({ length: count }).map(() => fetch(url, { cache: 'no-store' }));
+      const responses = await Promise.all(imagePromises);
+
+      const imageUrls: string[] = [];
+      for (const response of responses) {
+        if (response.ok) {
+          const data = await response.json();
+          // When many=false, data.images is an array with one image
+          if (data.images && data.images[0]?.url) {
+            imageUrls.push(data.images[0].url);
+          }
+        } else {
+          // A 404 on a single request just means no image found, which is not a failure for the whole batch.
+          if (response.status !== 404) {
+            console.warn(`waifu.im single fetch failed with status: ${response.status}`);
+          }
         }
-        const errorDetails = await response.json().catch(() => ({ detail: 'Could not parse error response.' }));
-        throw new Error(`API Error: ${response.statusText} (${response.status}) - ${errorDetails.detail || 'Unknown'}`);
       }
-      const data = await response.json();
-      if (!data.images || data.images.length === 0) {
+
+      if (imageUrls.length === 0) {
         return { success: true, images: [], message: 'No images found for this selection.' };
       }
-      const imageUrls = data.images.map((img: any) => img.url);
-      return { success: true, images: imageUrls };
+      
+      // Remove duplicates and return
+      return { success: true, images: [...new Set(imageUrls)] };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred.';
       console.error("waifu.im getImages error:", message);
