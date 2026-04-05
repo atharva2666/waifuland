@@ -18,15 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiSources } from "./waifu-api";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 
-const IMAGE_FETCH_COUNT = 30;
+const IMAGE_FETCH_COUNT = 10;
 
 export default function Home() {
   const [apiSourceKey, setApiSourceKey] = useState(Object.keys(apiSources)[0]);
@@ -166,10 +159,12 @@ export default function Home() {
             <h1 className="text-4xl font-bold text-white drop-shadow-md">
               Anime Image Viewer
             </h1>
-            <p className="text-white/60 mt-1">Explore images one by one</p>
+            <p className="text-white/60 mt-1">
+              Explore images from multiple APIs
+            </p>
           </div>
 
-          <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm py-4 mb-8">
+          <div className="py-4 mb-8">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg border border-white/10 bg-black/20 p-4">
               <div className="flex items-center gap-4 self-start sm:self-center">
                 <Label
@@ -217,7 +212,9 @@ export default function Home() {
                       currentCategories.map((cat) => (
                         <Button
                           key={cat}
-                          variant={activeCategory === cat ? "secondary" : "outline"}
+                          variant={
+                            activeCategory === cat ? "secondary" : "outline"
+                          }
                           onClick={() => setActiveCategory(cat)}
                           className="justify-start capitalize shrink-0 border-white/20 bg-transparent hover:bg-white/10 hover:text-white"
                         >
@@ -241,45 +238,39 @@ export default function Home() {
 
           <div className="flex-grow flex flex-col items-center justify-center">
             {isGenerating && galleryImages.length === 0 ? (
-              <div className="w-full h-[70vh] flex items-center justify-center">
-                <Skeleton className="w-full max-w-4xl h-full rounded-lg bg-white/10" />
+              <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-8">
+                <Skeleton className="w-full h-[80vh] rounded-lg bg-white/10" />
               </div>
             ) : galleryImages.length > 0 ? (
               <>
-                <Carousel
-                  opts={{ loop: true }}
-                  className="w-full max-w-4xl"
-                >
-                  <CarouselContent>
-                    {galleryImages.map((imgUrl, index) => (
-                      <CarouselItem key={`${imgUrl}-${index}`}>
-                        <div className="relative w-full h-[70vh] rounded-lg overflow-hidden group border border-white/10 shadow-lg">
-                          <Image
-                            src={imgUrl}
-                            alt={`Gallery image ${index + 1}`}
-                            fill
-                            className="object-contain"
-                            sizes="100vw"
-                            priority={index < 3}
-                          />
-                          <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleImageDownload(imgUrl)}
-                              className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
-                            >
-                              <Download className="h-6 w-6" />
-                              <span className="sr-only">Download</span>
-                            </Button>
-                          </div>
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="absolute -left-12 top-1/2 -translate-y-1/2 hidden sm:flex" />
-                  <CarouselNext className="absolute -right-12 top-1/2 -translate-y-1/2 hidden sm:flex" />
-                </Carousel>
+                <div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
+                  {galleryImages.map((imgUrl, index) => (
+                    <div
+                      key={`${imgUrl}-${index}`}
+                      className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20"
+                    >
+                      <Image
+                        src={imgUrl}
+                        alt={`Gallery image ${index + 1}`}
+                        width={1920}
+                        height={1080}
+                        className="w-full h-auto object-contain"
+                        priority={index < 2}
+                      />
+                      <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleImageDownload(imgUrl)}
+                          className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
+                        >
+                          <Download className="h-6 w-6" />
+                          <span className="sr-only">Download</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 <div className="flex justify-center mt-8">
                   <Button
