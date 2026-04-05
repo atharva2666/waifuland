@@ -12,94 +12,6 @@ export interface ImageApiSource {
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
-// Internal state for waifu.im to store which tags are exclusively NSFW
-const waifuImNsfwTags = new Set<string>();
-
-
-// --- waifu.im Implementation ---
-const waifuImApi: ImageApiSource = {
-  name: 'waifu.im',
-  hasNsfw: true,
-  async getTags() {
-    try {
-      const response = await fetch('https://api.waifu.im/tags');
-      if (!response.ok) {
-        console.error(`waifu.im tags API failed with status: ${response.status}`);
-        throw new Error('Failed to fetch tags from waifu.im');
-      }
-      const data = await response.json();
-      
-      const sfw = data?.versatile && Array.isArray(data.versatile) ? data.versatile.sort() : [];
-      const nsfw = data?.nsfw && Array.isArray(data.nsfw) ? data.nsfw.sort() : [];
-      
-      if (sfw.length === 0 && nsfw.length === 0) {
-        console.warn("waifu.im returned no tags, using fallback.");
-        const fallbackSfw = ['waifu', 'maid', 'uniform', 'selfies', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun'];
-        const fallbackNsfw = ['ero', 'ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'oppai'];
-        fallbackNsfw.forEach(tag => waifuImNsfwTags.add(tag));
-        return { sfw: fallbackSfw, nsfw: fallbackNsfw };
-      }
-
-      // Store the exclusively NSFW tags for later checks
-      nsfw.forEach(tag => waifuImNsfwTags.add(tag));
-      
-      return { sfw, nsfw };
-    } catch (error) {
-      console.error('waifu.im getTags error, using fallback:', error);
-      const fallbackSfw = ['waifu', 'maid', 'uniform', 'selfies', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun'];
-      const fallbackNsfw = ['ero', 'ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'oppai'];
-      fallbackNsfw.forEach(tag => waifuImNsfwTags.add(tag));
-      return { sfw: fallbackSfw, nsfw: fallbackNsfw };
-    }
-  },
-  async getImages(params) {
-    const { category, count } = params;
-    let { isNsfw } = params;
-
-    if (!category) {
-      return { success: false, images: [], message: 'No category selected.' };
-    }
-
-    if (waifuImNsfwTags.has(category)) {
-      isNsfw = true;
-    }
-
-    const url = `https://api.waifu.im/search?included_tags=${category}&is_nsfw=${isNsfw}`;
-
-    try {
-      const imagePromises = Array.from({ length: count }).map(() => fetch(url, { cache: 'no-store' }));
-      const responses = await Promise.all(imagePromises);
-
-      const imageUrls: string[] = [];
-      for (const response of responses) {
-        if (response.ok) {
-          const data = await response.json();
-          // When many=false, data.images is an array with one image
-          if (data.images && data.images[0]?.url) {
-            imageUrls.push(data.images[0].url);
-          }
-        } else {
-          // A 404 on a single request just means no image found, which is not a failure for the whole batch.
-          if (response.status !== 404) {
-            console.warn(`waifu.im single fetch failed with status: ${response.status}`);
-          }
-        }
-      }
-
-      if (imageUrls.length === 0) {
-        return { success: true, images: [], message: 'No images found for this selection.' };
-      }
-      
-      // Remove duplicates and return
-      return { success: true, images: [...new Set(imageUrls)] };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-      console.error("waifu.im getImages error:", message);
-      return { success: false, images: [], message };
-    }
-  },
-};
-
 // --- waifu.pics Implementation ---
 const waifuPicsApi: ImageApiSource = {
   name: 'waifu.pics',
@@ -156,11 +68,10 @@ const waifuPicsApi: ImageApiSource = {
 // --- nekos.life Implementation ---
 const nekosLifeApi: ImageApiSource = {
   name: 'nekos.life',
-  hasNsfw: true,
+  hasNsfw: false,
   async getTags() {
     const sfw = ['neko', 'waifu', 'tickle', 'slap', 'poke', 'pat', 'lizard', 'kiss', 'hug', 'fox_girl', 'feed', 'cuddle', 'kemonomimi', 'holo', 'smug', 'baka', 'woof', 'wallpaper', 'goose', 'gecg', 'avatar'];
-    const nsfw = ['femdom', 'classic', 'ngif', 'erok', 'yuri', 'erokemo', 'kuni', 'tits', 'pussy_jpg', 'cum_jpg', 'pussy', 'les', 'lewdkemo', 'lewd', 'hololewd', 'holoero', 'hentai', 'futanari', 'ero', 'eron', 'erofeet', 'eroyuri', 'solo', 'solog', 'feet', 'bj'];
-    return Promise.resolve({ sfw: sfw.sort(), nsfw: nsfw.sort() });
+    return Promise.resolve({ sfw: sfw.sort(), nsfw: [] });
   },
   async getImages(params) {
     const { category, count } = params;
@@ -241,7 +152,6 @@ const nekosBestApi: ImageApiSource = {
 };
 
 export const apiSources: { [key: string]: ImageApiSource } = {
-  'waifu.im': waifuImApi,
   'waifu.pics': waifuPicsApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
