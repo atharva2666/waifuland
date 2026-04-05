@@ -31,8 +31,23 @@ type WaifuImResponse = {
   images: WaifuImImage[];
 }
 
-const SFW_CATEGORIES = ["waifu", "maid", "uniform", "selfies", "marin-kitagawa", "raiden-shogun", "mori-calliope", "oppai"];
-const NSFW_CATEGORIES = ["ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero"];
+const ALL_CATEGORIES = [
+  "waifu",
+  "maid",
+  "uniform",
+  "selfies",
+  "marin-kitagawa",
+  "raiden-shogun",
+  "mori-calliope",
+  "oppai",
+  "ass",
+  "hentai",
+  "milf",
+  "oral",
+  "paizuri",
+  "ecchi",
+  "ero",
+].sort();
 
 
 export default function Home() {
@@ -47,30 +62,31 @@ export default function Home() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isGalleryLoading, startGalleryLoading] = useTransition();
 
-  const availableCategories = isNsfw ? NSFW_CATEGORIES : SFW_CATEGORIES;
+  const availableCategories = ALL_CATEGORIES;
 
   const fetchImage = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
       const params = new URLSearchParams({
-        included_tags: currentCategory,
+        included_tags: category,
+        is_nsfw: String(isNsfw)
       });
       
       const response = await fetch(`https://api.waifu.im/search?${params}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: `Failed to fetch image (status: ${response.status}).` }));
-        throw new Error(errorData.message || `Failed to fetch image (status: ${response.status}).`);
+        throw new Error(errorData.message || `API error ${response.status}: Could not fetch for '${category}'.`);
       }
 
       const data: WaifuImResponse = await response.json();
       if (data.images && data.images.length > 0) {
         setImageUrl(data.images[0].url);
       } else {
-        throw new Error(`No images found for category: ${currentCategory}`);
+        setImageUrl(null);
+        setError(`No images found for category: ${category}` + (isNsfw ? ' (NSFW)' : ' (SFW)'));
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -83,25 +99,32 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, [category, availableCategories, toast]);
+  }, [category, isNsfw, toast]);
 
   const fetchGalleryImages = useCallback((isInitial: boolean) => {
     startGalleryLoading(async () => {
        try {
-        const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
         const params = new URLSearchParams({
-            included_tags: currentCategory,
-            many: 'true'
+            included_tags: category,
+            many: 'true',
+            is_nsfw: String(isNsfw)
         });
 
         const response = await fetch(`https://api.waifu.im/search?${params}`);
 
         if (!response.ok) {
              const errorData = await response.json().catch(() => ({ message: `Failed to fetch gallery images (status: ${response.status}).` }));
-            throw new Error(errorData.message || `Failed to fetch gallery images (status: ${response.status}).`);
+            throw new Error(errorData.message || `API error ${response.status}: Could not fetch gallery for '${category}'.`);
         }
         const data: WaifuImResponse = await response.json();
         const urls = data.images.map(img => img.url);
+
+        if (urls.length === 0 && isInitial) {
+             toast({
+                title: "No gallery images found",
+                description: `No images found for category: ${category}` + (isNsfw ? ' (NSFW)' : ' (SFW)'),
+            });
+        }
 
         if (isInitial) {
           setGalleryImages(urls);
@@ -117,7 +140,7 @@ export default function Home() {
         });
       }
     });
-  }, [category, availableCategories, toast]);
+  }, [category, isNsfw, toast]);
   
   useEffect(() => {
     startGenerating(() => {
@@ -172,13 +195,7 @@ export default function Home() {
         <div className="w-full max-w-md lg:max-w-lg bg-card/60 backdrop-blur-xl p-6 rounded-2xl shadow-lg border border-border/20">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-6">
             <div className="flex items-center space-x-2 justify-center sm:justify-start">
-              <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={(checked) => {
-                  setIsNsfw(checked);
-                  const newCategories = checked ? NSFW_CATEGORIES : SFW_CATEGORIES;
-                  if (!newCategories.includes(category)) {
-                    setCategory(newCategories[0]);
-                  }
-              }} />
+              <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
               <Label htmlFor="nsfw-toggle">NSFW</Label>
             </div>
             <Select value={category} onValueChange={setCategory}>
