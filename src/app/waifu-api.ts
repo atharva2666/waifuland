@@ -12,6 +12,10 @@ export interface ImageApiSource {
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
+// Internal state for waifu.im to store which tags are exclusively NSFW
+const waifuImNsfwTags = new Set<string>();
+
+
 // --- waifu.im Implementation ---
 const waifuImApi: ImageApiSource = {
   name: 'waifu.im',
@@ -30,33 +34,51 @@ const waifuImApi: ImageApiSource = {
       
       if (sfw.length === 0 && nsfw.length === 0) {
         console.warn("waifu.im returned no tags, using fallback.");
-        return {
-          sfw: ['waifu', 'maid', 'uniform', 'selfies', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun'],
-          nsfw: ['ero', 'ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'oppai'],
-        };
+        const fallbackSfw = ['waifu', 'maid', 'uniform', 'selfies', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun'];
+        const fallbackNsfw = ['ero', 'ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'oppai'];
+        fallbackNsfw.forEach(tag => waifuImNsfwTags.add(tag));
+        return { sfw: fallbackSfw, nsfw: fallbackNsfw };
       }
+
+      // Store the exclusively NSFW tags for later checks
+      nsfw.forEach(tag => waifuImNsfwTags.add(tag));
       
       return { sfw, nsfw };
     } catch (error) {
-      console.error('waifu.im getTags error:', error);
-      // Fallback tags in case of any error
-      return {
-        sfw: ['waifu', 'maid', 'uniform', 'selfies', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun'],
-        nsfw: ['ero', 'ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'oppai'],
-      };
+      console.error('waifu.im getTags error, using fallback:', error);
+      const fallbackSfw = ['waifu', 'maid', 'uniform', 'selfies', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun'];
+      const fallbackNsfw = ['ero', 'ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'oppai'];
+      fallbackNsfw.forEach(tag => waifuImNsfwTags.add(tag));
+      return { sfw: fallbackSfw, nsfw: fallbackNsfw };
     }
   },
   async getImages(params) {
-    const { category, isNsfw } = params;
+    const { category } = params;
+    let { isNsfw } = params;
+
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
+
+    // THE DEFINITIVE FIX:
+    // The root cause of the 404 errors is sending an invalid request to waifu.im.
+    // The API returns 404 if you request a tag from their 'nsfw' list with `is_nsfw=false`.
+    // This logic ensures that if an exclusively NSFW tag is selected, we FORCE `is_nsfw` to be true,
+    // overriding the user's toggle and preventing the invalid API call.
+    if (waifuImNsfwTags.has(category)) {
+      isNsfw = true;
+    }
+
     const url = `https://api.waifu.im/search?included_tags=${category}&is_nsfw=${isNsfw}&many=true`;
 
     try {
       const response = await fetch(url, { cache: 'no-store' });
       if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText} (${response.status})`);
+         if (response.status === 404) {
+             return { success: true, images: [], message: `No images found for '${category}'. It may not exist or has no images for the current SFW/NSFW setting.` };
+        }
+        const errorDetails = await response.json().catch(() => ({ detail: 'Could not parse error response.' }));
+        throw new Error(`API Error: ${response.statusText} (${response.status}) - ${errorDetails.detail || 'Unknown'}`);
       }
       const data = await response.json();
       if (!data.images || data.images.length === 0) {
