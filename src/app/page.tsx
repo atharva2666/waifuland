@@ -20,18 +20,16 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 type WaifuImImage = {
   url: string;
-  tags: { name: string }[];
 };
 
 type WaifuImResponse = {
   images: WaifuImImage[];
-}
+};
 
-// All available categories from waifu.im API
+// A single, comprehensive list of categories from waifu.im, sorted for the UI
 const ALL_CATEGORIES = [
   "waifu",
   "maid",
@@ -50,7 +48,6 @@ const ALL_CATEGORIES = [
   "ero",
 ].sort();
 
-
 export default function Home() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isNsfw, setIsNsfw] = useState(false);
@@ -63,109 +60,91 @@ export default function Home() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isGalleryLoading, startGalleryLoading] = useTransition();
 
-  const fetchData = useCallback(async (isMany: boolean) => {
-    if (!isMany) {
+  // This single, robust function handles all API calls to waifu.im
+  const fetchData = useCallback(
+    async (isMany: boolean) => {
+      const endpoint = new URL("https://api.waifu.im/search");
+      endpoint.searchParams.set("included_tags", category);
+      endpoint.searchParams.set("is_nsfw", String(isNsfw));
+      if (isMany) {
+        endpoint.searchParams.set("many", "true");
+      }
+
+      try {
+        const response = await fetch(endpoint);
+
+        if (!response.ok) {
+          throw new Error(
+            `API Error: ${response.status}. Please try a different category or filter.`
+          );
+        }
+
+        const data: WaifuImResponse = await response.json();
+
+        if (!data.images || data.images.length === 0) {
+          return { success: true, images: [], message: "No images found for this selection." };
+        }
+        
+        return { success: true, images: data.images.map((img) => img.url) };
+
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "An unknown error occurred.";
+        return { success: false, images: [], message };
+      }
+    },
+    [category, isNsfw]
+  );
+
+  const fetchAndSetImage = useCallback(() => {
+    startGenerating(async () => {
       setIsLoading(true);
       setError(null);
-    }
-
-    try {
-      const params = new URLSearchParams({
-        included_tags: category,
-        is_nsfw: String(isNsfw),
-      });
-      if (isMany) {
-        params.append('many', 'true');
-      }
-
-      const response = await fetch(`https://api.waifu.im/search?${params}`);
-
-      if (!response.ok) {
-        // Attempt to parse error from API, otherwise use a generic message
-        let errorMessage = `API error ${response.status}: Could not fetch for '${category}'.`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // JSON parsing failed, stick with the generic error
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data: WaifuImResponse = await response.json();
+      const result = await fetchData(false);
+      setIsLoading(false);
       
-      if (!data.images || data.images.length === 0) {
-        const message = `No images found for category: ${category} with NSFW=${isNsfw}`;
-        if (isMany) {
-            if (galleryImages.length === 0) { // Only toast if initial gallery load is empty
-                toast({ title: "No More Images", description: message });
+      if (result.success) {
+        if (result.images.length > 0) {
+          setImageUrl(result.images[0]);
+        } else {
+          setImageUrl(null);
+          setError(result.message ?? "No image found.");
+        }
+      } else {
+        setImageUrl(null);
+        setError(result.message);
+        toast({ variant: "destructive", title: "Error fetching image", description: result.message });
+      }
+    });
+  }, [fetchData, toast]);
+
+  const fetchAndSetGallery = useCallback((isInitial: boolean) => {
+      startGalleryLoading(async () => {
+        const result = await fetchData(true);
+        if(result.success) {
+            if (isInitial) {
+                setGalleryImages(result.images);
+                if (result.images.length === 0) {
+                    toast({ title: "Lobby Empty", description: result.message });
+                }
+            } else {
+                setGalleryImages(prev => [...new Set([...prev, ...result.images])]);
             }
         } else {
-            setImageUrl(null);
-            setError(message);
+             toast({ variant: "destructive", title: "Error loading gallery", description: result.message });
         }
-        return []; // Return empty array if no images
-      }
-      
-      const urls = data.images.map(img => img.url);
-      return urls;
+      });
+  }, [fetchData, toast]);
 
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "An unknown error occurred.";
-      if (isMany) {
-        toast({
-            variant: "destructive",
-            title: "Could not load gallery.",
-            description: message,
-        });
-      } else {
-        setError(message);
-        setImageUrl(null);
-        toast({
-            variant: "destructive",
-            title: "Oh no! Something went wrong.",
-            description: message,
-        });
-      }
-      return []; // Return empty array on error
-    } finally {
-      if (!isMany) {
-        setIsLoading(false);
-      }
-    }
-  }, [category, isNsfw, toast, galleryImages.length]);
-
-  const fetchImage = async () => {
-    const urls = await fetchData(false);
-    if (urls.length > 0) {
-      setImageUrl(urls[0]);
-    }
-  };
-  
-  const fetchGalleryImages = useCallback((isInitial: boolean) => {
-    startGalleryLoading(async () => {
-      const urls = await fetchData(true);
-      if (isInitial) {
-        setGalleryImages(urls);
-      } else {
-        // Prevent duplicates
-        setGalleryImages(prev => [...prev, ...urls.filter(url => !prev.includes(url))]);
-      }
-    });
-  }, [fetchData]);
 
   useEffect(() => {
-    startGenerating(() => {
-      fetchImage();
-    });
-    fetchGalleryImages(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchAndSetImage();
+    fetchAndSetGallery(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNsfw, category]);
 
   const handleImageDownload = (url: string | null) => {
     if (!url) return;
     try {
-      // Use fetch to handle potential CORS issues with direct linking
       fetch(url)
         .then(response => response.blob())
         .then(blob => {
@@ -199,13 +178,7 @@ export default function Home() {
       });
     }
   };
-  
-  const handleGenerateClick = () => {
-      startGenerating(() => {
-        fetchImage();
-      });
-  };
-  
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-body">
       <main className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8">
@@ -236,7 +209,7 @@ export default function Home() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
+            <Button onClick={fetchAndSetImage} disabled={isGenerating || isLoading} className="w-full transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
               {isGenerating || isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -247,7 +220,7 @@ export default function Home() {
           </div>
 
           <div className="block w-full aspect-square relative bg-black/20 rounded-lg overflow-hidden border-2 border-white/20">
-            {isLoading || isGenerating ? (
+            {isLoading ? (
               <Skeleton className="w-full h-full bg-white/10" />
             ) : imageUrl ? (
               <Image
@@ -308,7 +281,7 @@ export default function Home() {
             )}
           </div>
            <div className="text-center mt-8">
-            <Button onClick={() => fetchGalleryImages(false)} disabled={isGalleryLoading} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
+            <Button onClick={() => fetchAndSetGallery(false)} disabled={isGalleryLoading} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
               {isGalleryLoading && galleryImages.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Load More
             </Button>
