@@ -31,7 +31,8 @@ type WaifuImResponse = {
   images: WaifuImImage[];
 }
 
-const SFW_CATEGORIES = [
+// All available categories from waifu.im API
+const ALL_CATEGORIES = [
   "waifu",
   "maid",
   "uniform",
@@ -39,9 +40,7 @@ const SFW_CATEGORIES = [
   "marin-kitagawa",
   "raiden-shogun",
   "mori-calliope",
-];
-
-const NSFW_CATEGORIES = [
+  "oppai",
   "ass",
   "hentai",
   "milf",
@@ -49,10 +48,7 @@ const NSFW_CATEGORIES = [
   "paizuri",
   "ecchi",
   "ero",
-  "oppai",
-];
-
-const ALL_CATEGORIES = [...SFW_CATEGORIES, ...NSFW_CATEGORIES].sort();
+].sort();
 
 
 export default function Home() {
@@ -67,88 +63,97 @@ export default function Home() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isGalleryLoading, startGalleryLoading] = useTransition();
 
-  const isCategoryNsfw = NSFW_CATEGORIES.includes(category);
-
-  const fetchImage = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchData = useCallback(async (isMany: boolean) => {
+    if (!isMany) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
-      const isRequestNsfw = isCategoryNsfw || isNsfw;
       const params = new URLSearchParams({
         included_tags: category,
-        is_nsfw: String(isRequestNsfw)
+        is_nsfw: String(isNsfw),
       });
-      
+      if (isMany) {
+        params.append('many', 'true');
+      }
+
       const response = await fetch(`https://api.waifu.im/search?${params}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: `Failed to fetch image (status: ${response.status}).` }));
-        throw new Error(errorData.message || `API error ${response.status}: Could not fetch for '${category}'.`);
+        // Attempt to parse error from API, otherwise use a generic message
+        let errorMessage = `API error ${response.status}: Could not fetch for '${category}'.`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // JSON parsing failed, stick with the generic error
+        }
+        throw new Error(errorMessage);
       }
 
       const data: WaifuImResponse = await response.json();
-      if (data.images && data.images.length > 0) {
-        setImageUrl(data.images[0].url);
-      } else {
-        setImageUrl(null);
-        setError(`No images found for category: ${category}` + (isRequestNsfw ? ' (NSFW)' : ' (SFW)'));
+      
+      if (!data.images || data.images.length === 0) {
+        const message = `No images found for category: ${category} with NSFW=${isNsfw}`;
+        if (isMany) {
+            if (galleryImages.length === 0) { // Only toast if initial gallery load is empty
+                toast({ title: "No More Images", description: message });
+            }
+        } else {
+            setImageUrl(null);
+            setError(message);
+        }
+        return []; // Return empty array if no images
       }
+      
+      const urls = data.images.map(img => img.url);
+      return urls;
+
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(message);
-      toast({
-        variant: "destructive",
-        title: "Oh no! Something went wrong.",
-        description: message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [category, isNsfw, toast, isCategoryNsfw]);
-
-  const fetchGalleryImages = useCallback((isInitial: boolean) => {
-    startGalleryLoading(async () => {
-       try {
-        const isRequestNsfw = isCategoryNsfw || isNsfw;
-        const params = new URLSearchParams({
-            included_tags: category,
-            many: 'true',
-            is_nsfw: String(isRequestNsfw)
-        });
-
-        const response = await fetch(`https://api.waifu.im/search?${params}`);
-
-        if (!response.ok) {
-             const errorData = await response.json().catch(() => ({ message: `Failed to fetch gallery images (status: ${response.status}).` }));
-            throw new Error(errorData.message || `API error ${response.status}: Could not fetch gallery for '${category}'.`);
-        }
-        const data: WaifuImResponse = await response.json();
-        const urls = data.images.map(img => img.url);
-
-        if (urls.length === 0 && isInitial) {
-             toast({
-                title: "No gallery images found",
-                description: `No images found for category: ${category}` + (isRequestNsfw ? ' (NSFW)' : ' (SFW)'),
-            });
-        }
-
-        if (isInitial) {
-          setGalleryImages(urls);
-        } else {
-          setGalleryImages(prev => [...prev, ...urls]);
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "An unknown error occurred.";
+      if (isMany) {
         toast({
-          variant: "destructive",
-          title: "Could not load gallery.",
-          description: message,
+            variant: "destructive",
+            title: "Could not load gallery.",
+            description: message,
+        });
+      } else {
+        setError(message);
+        setImageUrl(null);
+        toast({
+            variant: "destructive",
+            title: "Oh no! Something went wrong.",
+            description: message,
         });
       }
-    });
-  }, [category, isNsfw, toast, isCategoryNsfw]);
+      return []; // Return empty array on error
+    } finally {
+      if (!isMany) {
+        setIsLoading(false);
+      }
+    }
+  }, [category, isNsfw, toast, galleryImages.length]);
+
+  const fetchImage = async () => {
+    const urls = await fetchData(false);
+    if (urls.length > 0) {
+      setImageUrl(urls[0]);
+    }
+  };
   
+  const fetchGalleryImages = useCallback((isInitial: boolean) => {
+    startGalleryLoading(async () => {
+      const urls = await fetchData(true);
+      if (isInitial) {
+        setGalleryImages(urls);
+      } else {
+        // Prevent duplicates
+        setGalleryImages(prev => [...prev, ...urls.filter(url => !prev.includes(url))]);
+      }
+    });
+  }, [fetchData]);
+
   useEffect(() => {
     startGenerating(() => {
       fetchImage();
@@ -160,23 +165,37 @@ export default function Home() {
   const handleImageDownload = (url: string | null) => {
     if (!url) return;
     try {
-      const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-      a.download = url.split("/").pop() || "waifu.jpg";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      toast({
-        title: "Download Initiated",
-        description: "Your image is being downloaded.",
-      });
+      // Use fetch to handle potential CORS issues with direct linking
+      fetch(url)
+        .then(response => response.blob())
+        .then(blob => {
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = url.split("/").pop() || "waifu.jpg";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+            a.remove();
+            toast({
+              title: "Download Started",
+              description: "Your image is being downloaded.",
+            });
+        })
+        .catch(error => {
+            console.error("Download failed:", error);
+            toast({
+              variant: "destructive",
+              title: "Download Failed",
+              description: "Could not download the image. Please try again.",
+            });
+        });
     } catch (error) {
-      console.error("Download attempt failed:", error);
+      console.error("Download setup failed:", error);
       toast({
         variant: "destructive",
         title: "Oh no! Something went wrong.",
-        description: "Could not start download. Please try again.",
+        description: "Could not start download.",
       });
     }
   };
@@ -191,7 +210,7 @@ export default function Home() {
     <div className="min-h-screen w-full bg-background text-foreground font-body">
       <main className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold font-headline text-white mb-2 tracking-tight drop-shadow-lg [text-shadow:_0_4px_8px_rgba(0,0,0,0.3)]">
+          <h1 className="text-4xl md:text-5xl font-bold font-headline text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
             WaifuVault
           </h1>
           <p className="text-white/80 max-w-md mx-auto drop-shadow-md">
@@ -202,7 +221,7 @@ export default function Home() {
         <div className="w-full max-w-md lg:max-w-lg bg-white/10 backdrop-blur-2xl p-6 rounded-2xl shadow-2xl border border-white/20">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center mb-6">
             <div className="flex items-center space-x-2 justify-center sm:justify-start">
-              <Switch id="nsfw-toggle" checked={isNsfw || isCategoryNsfw} onCheckedChange={setIsNsfw} disabled={isCategoryNsfw}/>
+              <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
               <Label htmlFor="nsfw-toggle">NSFW</Label>
             </div>
             <Select value={category} onValueChange={setCategory}>
@@ -217,7 +236,7 @@ export default function Home() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full transition-transform active:scale-95 bg-pink-500/80 hover:bg-pink-500 text-white font-bold">
+            <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
               {isGenerating || isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -229,7 +248,7 @@ export default function Home() {
 
           <div className="block w-full aspect-square relative bg-black/20 rounded-lg overflow-hidden border-2 border-white/20">
             {isLoading || isGenerating ? (
-              <Skeleton className="w-full h-full" />
+              <Skeleton className="w-full h-full bg-white/10" />
             ) : imageUrl ? (
               <Image
                 key={imageUrl}
@@ -238,10 +257,7 @@ export default function Home() {
                 fill
                 priority
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                className={cn(
-                  "object-contain transition-all duration-300 opacity-0"
-                )}
-                onLoadingComplete={(image) => image.classList.remove("opacity-0")}
+                className="object-contain"
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4">
@@ -262,7 +278,7 @@ export default function Home() {
 
       <section className="pb-16">
         <div className="w-full max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8 text-white drop-shadow-lg [text-shadow:_0_4px_8px_rgba(0,0,0,0.3)]">Lobby</h2>
+          <h2 className="text-3xl font-bold text-center mb-8 text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">Lobby</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {(isGalleryLoading && galleryImages.length === 0) ? (
               Array.from({ length: 30 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-lg bg-white/10" />)
@@ -292,8 +308,8 @@ export default function Home() {
             )}
           </div>
            <div className="text-center mt-8">
-            <Button onClick={() => fetchGalleryImages(false)} disabled={isGalleryLoading} className="transition-transform active:scale-95 bg-pink-500/80 hover:bg-pink-500 text-white font-bold">
-              {isGalleryLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            <Button onClick={() => fetchGalleryImages(false)} disabled={isGalleryLoading} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
+              {isGalleryLoading && galleryImages.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Load More
             </Button>
           </div>
@@ -302,4 +318,3 @@ export default function Home() {
     </div>
   );
 }
-    
