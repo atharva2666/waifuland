@@ -1,100 +1,86 @@
 'use client';
 
-export type WaifuImTag = {
-  tag_id: number;
-  name: string;
-  description: string;
-  is_nsfw: boolean;
-};
-
-export type WaifuImImage = {
-  url: string;
-  tags: WaifuImTag[];
-};
-
-export type WaifuImSearchResponse = {
-  images: WaifuImImage[];
-};
-
-export type WaifuImTagsResponse = {
-  versatile: string[];
+export type WaifuPicsEndpoints = {
+  sfw: string[];
   nsfw: string[];
 };
 
-let nsfwTags: Set<string> = new Set();
-let versatileTags: string[] = [];
+export type WaifuPicsManyResponse = {
+  files: string[];
+}
+
+let sfwCategoriesCache: string[] = [];
+let nsfwCategoriesCache: string[] = [];
 
 /**
- * Fetches all versatile and NSFW tags from the waifu.im API and caches them.
- * This is the definitive source for which tags are considered NSFW.
+ * Fetches all SFW and NSFW endpoints from the waifu.pics API.
  */
-export async function loadTags(): Promise<{ versatile: string[], nsfw: string[] }> {
-  if (versatileTags.length > 0) {
-    return { versatile: versatileTags, nsfw: Array.from(nsfwTags) };
+export async function loadEndpoints(): Promise<WaifuPicsEndpoints> {
+  if (sfwCategoriesCache.length > 0 && nsfwCategoriesCache.length > 0) {
+    return { sfw: sfwCategoriesCache, nsfw: nsfwCategoriesCache };
   }
 
   try {
-    const response = await fetch('https://api.waifu.im/tags');
+    const response = await fetch('https://api.waifu.pics/endpoints');
     if (!response.ok) {
-      throw new Error(`Failed to fetch tags: ${response.status}`);
+      throw new Error(`Failed to fetch endpoints: ${response.status}`);
     }
-    const data: WaifuImTagsResponse = await response.json();
+    const data: WaifuPicsEndpoints = await response.json();
     
-    // Add defensive checks to prevent crash if API response is malformed
-    nsfwTags = new Set(data.nsfw || []);
-    versatileTags = (data.versatile || []).sort();
+    sfwCategoriesCache = (data.sfw || []).sort();
+    nsfwCategoriesCache = (data.nsfw || []).sort();
 
-    return { versatile: versatileTags, nsfw: (data.nsfw || []).sort() };
+    return { sfw: sfwCategoriesCache, nsfw: nsfwCategoriesCache };
   } catch (error) {
-    console.error("Error loading tags:", error);
+    console.error("Error loading waifu.pics endpoints:", error);
     // Return a hardcoded fallback if the API fails
-    const fallbackNsfw = ["ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero"];
-    const fallbackSfw = ["waifu", "maid", "uniform", "selfies", "marin-kitagawa", "raiden-shogun", "mori-calliope", "oppai"];
-    nsfwTags = new Set(fallbackNsfw);
-    versatileTags = fallbackSfw;
-    return { versatile: fallbackSfw, nsfw: fallbackNsfw };
+    return { 
+      sfw: ['waifu', 'neko', 'shinobu', 'megumin', 'bully', 'cuddle', 'cry', 'hug', 'awoo', 'kiss', 'lick', 'pat', 'smug', 'bonk', 'yeet', 'blush', 'smile', 'wave', 'highfive', 'handhold', 'nom', 'bite', 'glomp', 'slap', 'kill', 'kick', 'happy', 'wink', 'poke', 'dance', 'cringe'],
+      nsfw: ['waifu', 'neko', 'trap', 'blowjob']
+    };
   }
 }
 
 /**
- * Searches for images on waifu.im.
- * This function contains the critical fix for the 404 errors by intelligently
- * handling the is_nsfw flag based on the selected category.
+ * Searches for images on waifu.pics.
+ * The /many endpoint requires a POST request.
  */
 export async function searchImages(params: {
+  type: 'sfw' | 'nsfw';
   category: string;
-  isNsfw: boolean;
-  many: boolean;
 }): Promise<{ success: boolean; images: string[]; message?: string }> {
-  const { category, isNsfw: isNsfwToggleOn, many } = params;
+  const { type, category } = params;
 
-  // CRITICAL FIX: Determine the correct NSFW status for the API call.
-  // If the user selects an NSFW tag, we MUST query for NSFW images.
-  // If the user selects a SFW tag but has the toggle on, we also query for NSFW.
-  const isApiNsfw = nsfwTags.has(category) || isNsfwToggleOn;
-
-  const endpoint = new URL('https://api.waifu.im/search');
-  endpoint.searchParams.set('included_tags', category);
-  endpoint.searchParams.set('is_nsfw', String(isApiNsfw));
-  if (many) {
-    endpoint.searchParams.set('many', 'true');
+  if (!category) {
+    return { success: false, images: [], message: 'No category selected.' };
   }
+
+  const endpoint = `https://api.waifu.pics/many/${type}/${category}`;
   
   try {
-    const response = await fetch(endpoint, { cache: 'no-store' });
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ exclude: [] }), // API requires a body, can be empty
+      cache: 'no-store' 
+    });
 
     if (!response.ok) {
-      // This handles HTTP errors like 404, 500 etc.
+      if (response.status === 404) {
+        return { success: false, images: [], message: `Category '${category}' not found for ${type} type.`};
+      }
       throw new Error(`API Error: ${response.statusText} (${response.status})`);
     }
 
-    const data: WaifuImSearchResponse = await response.json();
+    const data: WaifuPicsManyResponse = await response.json();
 
-    if (!data.images || data.images.length === 0) {
+    if (!data.files || data.files.length === 0) {
       return { success: true, images: [], message: 'No images found for this selection.' };
     }
 
-    return { success: true, images: data.images.map((img) => img.url) };
+    return { success: true, images: data.files };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'An unknown error occurred.';
     console.error("Image fetch error:", message);

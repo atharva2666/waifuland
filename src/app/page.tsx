@@ -2,66 +2,62 @@
 
 import { useState, useEffect, useCallback, useTransition } from "react";
 import Image from "next/image";
-import { Download, RefreshCw, Loader2, Image as ImageIcon } from "lucide-react";
+import { Download, RefreshCw, Loader2, Image as ImageIcon, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
-import { loadTags, searchImages } from "./waifu-api";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { loadEndpoints, searchImages } from "./waifu-api";
 
 export default function Home() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
-  const [allTags, setAllTags] = useState<string[]>([]);
+  const [sfwCategories, setSfwCategories] = useState<string[]>([]);
+  const [nsfwCategories, setNsfwCategories] = useState<string[]>([]);
+  
   const [isNsfw, setIsNsfw] = useState(false);
-  const [category, setCategory] = useState("waifu");
+  const [activeCategory, setActiveCategory] = useState("waifu");
   const [isGenerating, startGenerating] = useTransition();
   const { toast } = useToast();
 
-  // Load all available tags from the API on initial render
   useEffect(() => {
-    async function getTags() {
-      const { versatile, nsfw } = await loadTags();
-      // Combine SFW and NSFW tags and sort them for the dropdown
-      const combined = [...new Set([...versatile, ...nsfw])].sort();
-      setAllTags(combined);
+    async function getEndpoints() {
+      const { sfw, nsfw } = await loadEndpoints();
+      setSfwCategories(sfw);
+      setNsfwCategories(nsfw);
     }
-    getTags();
+    getEndpoints();
   }, []);
 
   const fetchAndSetGallery = useCallback(
-    async (isInitialLoad = false) => {
+    async (isNewSearch = false) => {
+      if (!activeCategory) return;
+
       startGenerating(async () => {
-        if (isInitialLoad) {
-          setGalleryImages([]); // Clear previous images on new category/filter
+        if (isNewSearch) {
+          setGalleryImages([]);
         }
+        
         const result = await searchImages({
-          category,
-          isNsfw,
-          many: true,
+          type: isNsfw ? 'nsfw' : 'sfw',
+          category: activeCategory,
         });
 
         if (result.success) {
           if (result.images.length > 0) {
-            if (isInitialLoad) {
+            if (isNewSearch) {
               setGalleryImages(result.images);
             } else {
-              // Add new images, preventing duplicates
               setGalleryImages((prev) => [...new Set([...prev, ...result.images])]);
             }
           } else {
-             if (isInitialLoad) setGalleryImages([]);
-             toast({ title: "No images found", description: result.message });
+             if (isNewSearch) setGalleryImages([]);
+             toast({ title: "No images found", description: result.message || "Try another category." });
           }
         } else {
+          if (isNewSearch) setGalleryImages([]);
           toast({
             variant: "destructive",
             title: "Error fetching images",
@@ -70,16 +66,25 @@ export default function Home() {
         }
       });
     },
-    [category, isNsfw, toast]
+    [activeCategory, isNsfw, toast]
   );
   
-  // Fetch images when category or NSFW toggle changes
   useEffect(() => {
-    if (allTags.length > 0) { // Ensure tags are loaded before fetching
+    const currentCategoryList = isNsfw ? nsfwCategories : sfwCategories;
+    if (currentCategoryList.length > 0 && !currentCategoryList.includes(activeCategory)) {
+        setActiveCategory(currentCategoryList[0]);
+    } else if (activeCategory) {
         fetchAndSetGallery(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, isNsfw, allTags.length]);
+  }, [isNsfw, sfwCategories, nsfwCategories]);
+
+  useEffect(() => {
+    if (activeCategory) {
+        fetchAndSetGallery(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory]);
 
 
   const handleImageDownload = (url: string | null) => {
@@ -110,62 +115,63 @@ export default function Home() {
       });
   };
 
+  const currentCategories = isNsfw ? nsfwCategories : sfwCategories;
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-body">
       <div className="flex">
-        {/* --- Sidebar --- */}
-        <aside className="w-72 h-screen flex-col gap-4 border-r border-white/10 bg-black/20 p-4 hidden md:flex sticky top-0">
-           <div className="text-left mb-4">
-            <h1 className="text-3xl font-bold text-white">WaifuVault</h1>
-            <p className="text-white/60">Find your perfect image</p>
+        <aside className="w-72 h-screen flex-col gap-2 border-r border-white/10 bg-black/20 p-4 hidden md:flex sticky top-0">
+           <div className="text-left pt-2 pb-4 flex items-center gap-3">
+            <Sparkles className="text-primary w-8 h-8"/>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Waifu.pics</h1>
+              <p className="text-white/60 text-sm">Image Gallery</p>
+            </div>
           </div>
           <Separator className="bg-white/10" />
-          <div className="flex flex-col gap-6 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="category-select">Category</Label>
-                <Select value={category} onValueChange={setCategory} disabled={allTags.length === 0}>
-                  <SelectTrigger id="category-select" className="w-full">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allTags.length > 0 ? (
-                      allTags.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' ')}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="loading" disabled>Loading tags...</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-white/10 p-3 shadow-sm">
-                <div className="space-y-0.5">
-                    <Label htmlFor="nsfw-toggle">NSFW Mode</Label>
-                    <p className="text-xs text-white/60">Show not safe for work content</p>
-                </div>
-                <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
-              </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-white/10 p-3 shadow-sm my-4">
+            <div className="space-y-0.5">
+                <Label htmlFor="nsfw-toggle" className="text-base font-medium text-white">NSFW Mode</Label>
+                <p className="text-xs text-white/60">Show NSFW content</p>
+            </div>
+            <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
           </div>
-           <Button onClick={() => fetchAndSetGallery(true)} disabled={isGenerating} className="w-full mt-auto transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
-              {isGenerating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Generate
-            </Button>
+
+          <h3 className="text-sm font-semibold text-white/80 px-2">{isNsfw ? 'NSFW' : 'SFW'} Categories</h3>
+          <ScrollArea className="flex-1 -mx-2">
+            <div className="flex flex-col gap-1 p-2">
+                {currentCategories.length > 0 ? (
+                  currentCategories.map((cat) => (
+                    <Button 
+                      key={cat} 
+                      variant={activeCategory === cat ? "secondary" : "ghost"}
+                      onClick={() => setActiveCategory(cat)}
+                      className="justify-start capitalize"
+                    >
+                      {cat.replace(/-/g, ' ')}
+                    </Button>
+                  ))
+                ) : (
+                  Array.from({ length: 15 }).map((_, i) => <Skeleton key={i} className="h-8 w-full rounded-md bg-white/10" />)
+                )}
+            </div>
+          </ScrollArea>
         </aside>
 
-        {/* --- Main Content --- */}
         <main className="flex-1 p-4 sm:p-6 md:p-8">
             <div className="w-full max-w-7xl mx-auto">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-white drop-shadow-md">
-                    Gallery
-                </h2>
-                <span className="text-white/60">{galleryImages.length > 0 ? `${galleryImages.length} images` : ''}</span>
+                  <div>
+                    <h2 className="text-3xl font-bold text-white drop-shadow-md capitalize">
+                        {activeCategory.replace(/-/g, ' ')}
+                    </h2>
+                    <span className="text-white/60">{galleryImages.length > 0 ? `${galleryImages.length} images` : ''}</span>
+                  </div>
+                 <Button onClick={() => fetchAndSetGallery(false)} disabled={isGenerating || !activeCategory} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
+                    {isGenerating && galleryImages.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Load More
+                </Button>
               </div>
             
             {isGenerating && galleryImages.length === 0 ? (
@@ -183,7 +189,7 @@ export default function Home() {
                                     fill
                                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                                    priority={index < 10} // Prioritize loading first 10 images
+                                    priority={index < 10}
                                 />
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                     <Button
@@ -199,18 +205,12 @@ export default function Home() {
                             </div>
                         ))}
                     </div>
-                    <div className="text-center mt-8">
-                        <Button onClick={() => fetchAndSetGallery(false)} disabled={isGenerating} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
-                            {isGenerating && galleryImages.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            Load More
-                        </Button>
-                    </div>
                 </>
             ) : (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-black/20 rounded-lg">
                     <ImageIcon className="w-16 h-16 mb-4 text-white/30" />
                     <p className="text-center text-white/70">No images to display.</p>
-                    <p className="text-center text-white/50 text-sm">Try changing the category or filters.</p>
+                    <p className="text-center text-white/50 text-sm">Select a category to get started.</p>
                 </div>
             )}
             </div>
