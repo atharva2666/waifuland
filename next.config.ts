@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'api.fluxpoint.io',
+        hostname: 'cdn.waifu.im',
         port: '',
         pathname: '/**',
       },

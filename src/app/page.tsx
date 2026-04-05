@@ -22,24 +22,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type FluxpointImage = {
-  file: string;
+type WaifuImImage = {
+  url: string;
+  tags: { name: string }[];
 };
 
-type WaifuManyImage = {
-  files: string[];
+type WaifuImResponse = {
+  images: WaifuImImage[];
 }
 
-// IMPORTANT: Replace with your actual key from https://fluxpoint.io/dashboard
-const FLUXPOINT_API_KEY = "YOUR_FLUXPOINT_API_KEY_HERE"; 
-
-const SFW_CATEGORIES = ["anime", "azurlane", "chibi", "christmas", "halloween", "holo", "kemonomimi", "maid", "neko", "senko", "uniform", "wallpaper"];
-const NSFW_CATEGORIES = ["ass", "bdsm", "blowjob", "cum", "ero", "feet", "hentai", "neko", "pussy", "yuri"];
+const SFW_CATEGORIES = ["waifu", "maid", "oppai", "selfies", "uniform"];
+const NSFW_CATEGORIES = ["ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero"];
 
 export default function Home() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isNsfw, setIsNsfw] = useState(false);
-  const [category, setCategory] = useState("anime");
+  const [category, setCategory] = useState("waifu");
   const [isGenerating, startGenerating] = useTransition();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,35 +52,26 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
 
-    if (FLUXPOINT_API_KEY === "YOUR_FLUXPOINT_API_KEY_HERE") {
-        const msg = "Please add your Fluxpoint API key to use the generator.";
-        setError(msg);
-        toast({
-            variant: "destructive",
-            title: "API Key Missing",
-            description: msg,
-        });
-        setIsLoading(false);
-        return;
-    }
-
     try {
-      const type = isNsfw ? "nsfw" : "sfw";
       const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
-      
-      const response = await fetch(`https://api.fluxpoint.io/${type}/img/${currentCategory}`, {
-        headers: {
-            'Authorization': FLUXPOINT_API_KEY
-        }
+      const params = new URLSearchParams({
+        included_tags: currentCategory,
+        is_nsfw: isNsfw.toString(),
       });
+      
+      const response = await fetch(`https://api.waifu.im/search?${params}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: `Failed to fetch image (status: ${response.status}).` }));
-        throw new Error(errorData.message || `Failed to fetch image (status: ${response.status}). Check your API key.`);
+        throw new Error(errorData.message || `Failed to fetch image (status: ${response.status}).`);
       }
 
-      const data: FluxpointImage = await response.json();
-      setImageUrl(data.file);
+      const data: WaifuImResponse = await response.json();
+      if (data.images && data.images.length > 0) {
+        setImageUrl(data.images[0].url);
+      } else {
+        throw new Error(`No images found for category: ${currentCategory}`);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unknown error occurred.";
       setError(message);
@@ -98,33 +87,27 @@ export default function Home() {
 
   const fetchGalleryImages = useCallback((isInitial: boolean) => {
     startGalleryLoading(async () => {
-       if (FLUXPOINT_API_KEY === "YOUR_FLUXPOINT_API_KEY_HERE") {
-            // Silently fail for gallery if no key is present
-            return;
-       }
        try {
-        const type = isNsfw ? "nsfw" : "sfw";
         const currentCategory = availableCategories.includes(category) ? category : availableCategories[0];
-
-        const response = await fetch(`https://api.fluxpoint.io/${type}/img/bulk/${currentCategory}`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': FLUXPOINT_API_KEY
-            },
-            body: JSON.stringify({ amount: 30 })
+        const params = new URLSearchParams({
+            included_tags: currentCategory,
+            is_nsfw: isNsfw.toString(),
+            many: 'true'
         });
+
+        const response = await fetch(`https://api.waifu.im/search?${params}`);
 
         if (!response.ok) {
              const errorData = await response.json().catch(() => ({ message: `Failed to fetch gallery images (status: ${response.status}).` }));
             throw new Error(errorData.message || `Failed to fetch gallery images (status: ${response.status}).`);
         }
-        const data: WaifuManyImage = await response.json();
-        
+        const data: WaifuImResponse = await response.json();
+        const urls = data.images.map(img => img.url);
+
         if (isInitial) {
-          setGalleryImages(data.files);
+          setGalleryImages(urls);
         } else {
-          setGalleryImages(prev => [...prev, ...data.files]);
+          setGalleryImages(prev => [...prev, ...urls]);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "An unknown error occurred.";
