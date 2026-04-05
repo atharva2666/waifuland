@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback, useTransition } from "react";
 import Image from "next/image";
-import { Download, RefreshCw, Loader2, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Download, RefreshCw, Loader2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { loadEndpoints, searchImages } from "./waifu-api";
 
 export default function Home() {
@@ -119,61 +119,52 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-body">
-      <div className="flex">
-        <aside className="w-72 h-screen flex-col gap-2 border-r border-white/10 bg-black/20 p-4 hidden md:flex sticky top-0">
-           <div className="text-left pt-2 pb-4 flex items-center gap-3">
-            <Sparkles className="text-primary w-8 h-8"/>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Waifu.pics</h1>
-              <p className="text-white/60 text-sm">Image Gallery</p>
-            </div>
-          </div>
-          <Separator className="bg-white/10" />
-
-          <div className="flex items-center justify-between rounded-lg border border-white/10 p-3 shadow-sm my-4">
-            <div className="space-y-0.5">
-                <Label htmlFor="nsfw-toggle" className="text-base font-medium text-white">NSFW Mode</Label>
-                <p className="text-xs text-white/60">Show NSFW content</p>
-            </div>
-            <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
-          </div>
-
-          <h3 className="text-sm font-semibold text-white/80 px-2">{isNsfw ? 'NSFW' : 'SFW'} Categories</h3>
-          <ScrollArea className="flex-1 -mx-2">
-            <div className="flex flex-col gap-1 p-2">
-                {currentCategories.length > 0 ? (
-                  currentCategories.map((cat) => (
-                    <Button 
-                      key={cat} 
-                      variant={activeCategory === cat ? "secondary" : "ghost"}
-                      onClick={() => setActiveCategory(cat)}
-                      className="justify-start capitalize"
-                    >
-                      {cat.replace(/-/g, ' ')}
-                    </Button>
-                  ))
-                ) : (
-                  Array.from({ length: 15 }).map((_, i) => <Skeleton key={i} className="h-8 w-full rounded-md bg-white/10" />)
-                )}
-            </div>
-          </ScrollArea>
-        </aside>
-
-        <main className="flex-1 p-4 sm:p-6 md:p-8">
-            <div className="w-full max-w-7xl mx-auto">
-              <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-white drop-shadow-md capitalize">
-                        {activeCategory.replace(/-/g, ' ')}
-                    </h2>
-                    <span className="text-white/60">{galleryImages.length > 0 ? `${galleryImages.length} images` : ''}</span>
-                  </div>
-                 <Button onClick={() => fetchAndSetGallery(false)} disabled={isGenerating || !activeCategory} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold">
-                    {isGenerating && galleryImages.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                    Load More
-                </Button>
-              </div>
+      <main className="w-full p-4 sm:p-6 md:p-8">
+          <div className="w-full max-w-7xl mx-auto">
             
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-white drop-shadow-md">Waifu.pics Gallery</h1>
+              <p className="text-white/60 mt-1">Browse a collection of images from waifu.pics</p>
+            </div>
+
+            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm py-4 mb-8">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center gap-4 self-start sm:self-center">
+                    <Label htmlFor="nsfw-toggle" className="text-base font-medium text-white whitespace-nowrap">NSFW Mode</Label>
+                    <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
+                </div>
+                <Separator orientation="vertical" className="h-8 hidden sm:block bg-white/10"/>
+                <div className="flex-1 w-full sm:w-auto">
+                    <ScrollArea className="w-full">
+                        <div className="flex items-center gap-2 pb-2">
+                            {currentCategories.length > 0 ? (
+                              currentCategories.map((cat) => (
+                                <Button 
+                                  key={cat} 
+                                  variant={activeCategory === cat ? "secondary" : "outline"}
+                                  onClick={() => setActiveCategory(cat)}
+                                  className="justify-start capitalize shrink-0 border-white/20 bg-transparent hover:bg-white/10 hover:text-white"
+                                >
+                                  {cat.replace(/-/g, ' ')}
+                                </Button>
+                              ))
+                            ) : (
+                              Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-10 w-24 rounded-md bg-white/10" />)
+                            )}
+                        </div>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-white drop-shadow-md capitalize">
+                  {activeCategory.replace(/-/g, ' ')}
+              </h2>
+              <span className="text-white/60">{galleryImages.length > 0 ? `${galleryImages.length} images found` : `Loading images...`}</span>
+            </div>
+          
             {isGenerating && galleryImages.length === 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {Array.from({ length: 30 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-lg bg-white/10" />)}
@@ -205,6 +196,13 @@ export default function Home() {
                             </div>
                         ))}
                     </div>
+                    
+                    <div className="flex justify-center mt-8">
+                      <Button onClick={() => fetchAndSetGallery(false)} disabled={isGenerating || !activeCategory} className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold text-base py-6 px-8">
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Load More Images
+                      </Button>
+                    </div>
                 </>
             ) : (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-black/20 rounded-lg">
@@ -213,9 +211,8 @@ export default function Home() {
                     <p className="text-center text-white/50 text-sm">Select a category to get started.</p>
                 </div>
             )}
-            </div>
-        </main>
-      </div>
+          </div>
+      </main>
     </div>
   );
 }
