@@ -10,26 +10,43 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { loadEndpoints, searchImages } from "./waifu-api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiSources } from "./waifu-api";
+
+const IMAGE_FETCH_COUNT = 30;
 
 export default function Home() {
+  const [apiSourceKey, setApiSourceKey] = useState(Object.keys(apiSources)[0]);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [sfwCategories, setSfwCategories] = useState<string[]>([]);
   const [nsfwCategories, setNsfwCategories] = useState<string[]>([]);
   
   const [isNsfw, setIsNsfw] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("waifu");
+  const [activeCategory, setActiveCategory] = useState("");
   const [isGenerating, startGenerating] = useTransition();
   const { toast } = useToast();
 
+  const apiSource = apiSources[apiSourceKey];
+
   useEffect(() => {
-    async function getEndpoints() {
-      const { sfw, nsfw } = await loadEndpoints();
+    async function getTags() {
+      setGalleryImages([]);
+      setActiveCategory("");
+      setSfwCategories([]);
+      setNsfwCategories([]);
+      
+      const { sfw, nsfw } = await apiSource.getTags();
       setSfwCategories(sfw);
       setNsfwCategories(nsfw);
+      
+      const currentList = isNsfw && apiSource.hasNsfw ? nsfw : sfw;
+      if (currentList.length > 0) {
+        setActiveCategory(currentList[0]);
+      }
     }
-    getEndpoints();
-  }, []);
+    getTags();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiSourceKey]);
 
   const fetchAndSetGallery = useCallback(
     async (isNewSearch = false) => {
@@ -40,9 +57,10 @@ export default function Home() {
           setGalleryImages([]);
         }
         
-        const result = await searchImages({
-          type: isNsfw ? 'nsfw' : 'sfw',
+        const result = await apiSource.getImages({
           category: activeCategory,
+          isNsfw: isNsfw && apiSource.hasNsfw,
+          count: IMAGE_FETCH_COUNT,
         });
 
         if (result.success) {
@@ -54,7 +72,7 @@ export default function Home() {
             }
           } else {
              if (isNewSearch) setGalleryImages([]);
-             toast({ title: "No images found", description: result.message || "Try another category." });
+             toast({ title: "No images found", description: result.message || "Try another category or toggle." });
           }
         } else {
           if (isNewSearch) setGalleryImages([]);
@@ -66,18 +84,18 @@ export default function Home() {
         }
       });
     },
-    [activeCategory, isNsfw, toast]
+    [activeCategory, isNsfw, toast, apiSource]
   );
   
   useEffect(() => {
-    const currentCategoryList = isNsfw ? nsfwCategories : sfwCategories;
-    if (currentCategoryList.length > 0 && !currentCategoryList.includes(activeCategory)) {
-        setActiveCategory(currentCategoryList[0]);
+    const currentList = isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
+    if (currentList.length > 0 && !currentList.includes(activeCategory)) {
+        setActiveCategory(currentList[0]);
     } else if (activeCategory) {
         fetchAndSetGallery(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNsfw, sfwCategories, nsfwCategories]);
+  }, [isNsfw]);
 
   useEffect(() => {
     if (activeCategory) {
@@ -89,7 +107,7 @@ export default function Home() {
 
   const handleImageDownload = (url: string | null) => {
     if (!url) return;
-    fetch(url)
+    fetch(url, { cache: 'no-cache'})
       .then(response => response.blob())
       .then(blob => {
         const blobUrl = window.URL.createObjectURL(blob);
@@ -115,7 +133,7 @@ export default function Home() {
       });
   };
 
-  const currentCategories = isNsfw ? nsfwCategories : sfwCategories;
+  const currentCategories = isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-body">
@@ -123,16 +141,31 @@ export default function Home() {
           <div className="w-full max-w-7xl mx-auto">
             
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-white drop-shadow-md">Waifu.pics Gallery</h1>
-              <p className="text-white/60 mt-1">Browse a collection of images from waifu.pics</p>
+              <h1 className="text-4xl font-bold text-white drop-shadow-md">Anime Image Gallery</h1>
+              <p className="text-white/60 mt-1">Powered by multiple APIs</p>
             </div>
 
             <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm py-4 mb-8">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg border border-white/10 bg-black/20 p-4">
                 <div className="flex items-center gap-4 self-start sm:self-center">
-                    <Label htmlFor="nsfw-toggle" className="text-base font-medium text-white whitespace-nowrap">NSFW Mode</Label>
-                    <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
+                  <Label htmlFor="api-source" className="text-base font-medium text-white whitespace-nowrap">API Source</Label>
+                  <Select value={apiSourceKey} onValueChange={setApiSourceKey}>
+                    <SelectTrigger className="w-[180px] bg-transparent border-white/20 hover:bg-white/10 text-white">
+                      <SelectValue placeholder="Select an API" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(apiSources).map(key => (
+                        <SelectItem key={key} value={key}>{apiSources[key].name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                {apiSource.hasNsfw && (
+                  <div className="flex items-center gap-4 self-start sm:self-center">
+                      <Label htmlFor="nsfw-toggle" className="text-base font-medium text-white whitespace-nowrap">NSFW Mode</Label>
+                      <Switch id="nsfw-toggle" checked={isNsfw} onCheckedChange={setIsNsfw} />
+                  </div>
+                )}
                 <Separator orientation="vertical" className="h-8 hidden sm:block bg-white/10"/>
                 <div className="flex-1 w-full sm:w-auto">
                     <ScrollArea className="w-full">
@@ -145,7 +178,7 @@ export default function Home() {
                                   onClick={() => setActiveCategory(cat)}
                                   className="justify-start capitalize shrink-0 border-white/20 bg-transparent hover:bg-white/10 hover:text-white"
                                 >
-                                  {cat.replace(/-/g, ' ')}
+                                  {cat.replace(/_/g, ' ')}
                                 </Button>
                               ))
                             ) : (
@@ -160,14 +193,14 @@ export default function Home() {
             
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-white drop-shadow-md capitalize">
-                  {activeCategory.replace(/-/g, ' ')}
+                  {activeCategory.replace(/_/g, ' ')}
               </h2>
-              <span className="text-white/60">{galleryImages.length > 0 ? `${galleryImages.length} images found` : `Loading images...`}</span>
+              <span className="text-white/60">{galleryImages.length > 0 ? `${galleryImages.length} images shown` : isGenerating ? 'Loading images...' : ''}</span>
             </div>
           
             {isGenerating && galleryImages.length === 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {Array.from({ length: 30 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-lg bg-white/10" />)}
+                    {Array.from({ length: IMAGE_FETCH_COUNT }).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-lg bg-white/10" />)}
                 </div>
             ) : galleryImages.length > 0 ? (
                 <>
