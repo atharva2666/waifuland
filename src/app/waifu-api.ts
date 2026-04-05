@@ -39,24 +39,31 @@ const waifuPicsApi: ImageApiSource = {
       return { success: false, images: [], message: 'No category selected.' };
     }
     const type = isNsfw ? 'nsfw' : 'sfw';
-    // The API expects a max of 30, but we will use the count passed in.
-    const url = `https://api.waifu.pics/many/${type}/${category}`;
+    const url = `https://api.waifu.pics/${type}/${category}`;
 
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exclude: [] }),
-        cache: 'no-store'
-      });
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText} (${response.status})`);
+      // This API returns one image per call for the single endpoint, so we make 'count' requests in parallel.
+      const imagePromises = Array.from({ length: count }).map(() => fetch(url, { cache: 'no-store' }));
+      const responses = await Promise.all(imagePromises);
+      
+      const imageUrls: string[] = [];
+      for (const response of responses) {
+        if (response.ok) {
+          const data = await response.json();
+          if (data.url) {
+            imageUrls.push(data.url);
+          }
+        } else {
+            // If one request fails, we can log it but continue with the others
+            console.error(`waifu.pics single request failed: ${response.statusText}`);
+        }
       }
-      const data = await response.json();
-      if (!data.files || data.files.length === 0) {
+
+      if (imageUrls.length === 0) {
         return { success: true, images: [], message: 'No images found for this selection.' };
       }
-      return { success: true, images: data.files };
+      // Remove duplicates as multiple requests might return the same image
+      return { success: true, images: [...new Set(imageUrls)] };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred.';
       console.error("waifu.pics getImages error:", message);
