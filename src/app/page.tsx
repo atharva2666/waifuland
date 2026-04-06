@@ -192,7 +192,7 @@ export default function Home() {
                     htmlFor="nsfw-toggle"
                     className="text-base font-medium text-white whitespace-nowrap"
                   >
-                    NSFW Mode
+                    18+
                   </Label>
                   <Switch
                     id="nsfw-toggle"
