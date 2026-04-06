@@ -13,6 +13,12 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'Olivia',
   description: 'Explore images and media from multiple APIs',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({
