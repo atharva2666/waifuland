@@ -11,8 +11,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'WaifuVault',
-  description: 'Discover and collect your favorite waifus',
+  title: 'Olivia',
+  description: 'Explore images and media from multiple APIs',
 };
 
 export default function RootLayout({

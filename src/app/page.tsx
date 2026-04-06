@@ -157,10 +157,10 @@ export default function Home() {
         <div className="w-full max-w-7xl mx-auto flex flex-col">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white drop-shadow-md">
-              Anime Image Viewer
+              Olivia
             </h1>
             <p className="text-white/60 mt-1">
-              Explore images from multiple APIs
+              Explore images and media from multiple APIs
             </p>
           </div>
 
