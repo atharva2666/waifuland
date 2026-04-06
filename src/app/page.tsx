@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition } from "react";
-import Image from "next/image";
 import { Download, RefreshCw, Loader2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -18,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiSources } from "./waifu-api";
+import { MediaPlayer } from "@/components/media-player";
 
 const IMAGE_FETCH_COUNT = 10;
 
@@ -249,12 +249,9 @@ export default function Home() {
                       key={`${imgUrl}-${index}`}
                       className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20"
                     >
-                      <Image
+                      <MediaPlayer
                         src={imgUrl}
                         alt={`Gallery image ${index + 1}`}
-                        width={1920}
-                        height={1080}
-                        className="w-full h-auto object-contain"
                         priority={index < 2}
                       />
                       <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
