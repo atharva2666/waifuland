@@ -6,8 +6,6 @@ import {
   RefreshCw,
   Loader2,
   ImageIcon,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -23,17 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { apiSources } from "./waifu-api";
 import { MediaPlayer } from "@/components/media-player";
 
-const IMAGE_FETCH_COUNT = 10;
+const IMAGE_FETCH_COUNT = 30;
 
 export default function Home() {
   const [apiSourceKey, setApiSourceKey] = useState(Object.keys(apiSources)[0]);
@@ -242,51 +233,40 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex-grow flex flex-col items-center justify-center">
+          <div className="flex-grow">
             {isGenerating && galleryImages.length === 0 ? (
-              <div className="w-full max-w-4xl mx-auto">
-                <Carousel>
-                  <CarouselContent>
-                    <CarouselItem>
-                      <Skeleton className="w-full h-[80vh] rounded-lg bg-white/10" />
-                    </CarouselItem>
-                  </CarouselContent>
-                </Carousel>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="aspect-[9/16] rounded-lg">
+                    <Skeleton className="w-full h-full bg-white/10" />
+                  </div>
+                ))}
               </div>
             ) : galleryImages.length > 0 ? (
               <>
-                <div className="w-full max-w-4xl mx-auto">
-                  <Carousel opts={{ loop: true }}>
-                    <CarouselContent>
-                      {galleryImages.map((imgUrl, index) => (
-                        <CarouselItem
-                          key={`${imgUrl}-${index}`}
-                          className="relative"
-                        >
-                          <div className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20 aspect-[9/16] sm:aspect-video">
-                            <MediaPlayer
-                              src={imgUrl}
-                              alt={`Gallery image ${index + 1}`}
-                              priority={index < 2}
-                            />
-                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => handleImageDownload(imgUrl)}
-                                className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
-                              >
-                                <Download className="h-6 w-6" />
-                                <span className="sr-only">Download</span>
-                              </Button>
-                            </div>
-                          </div>
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                    <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white bg-black/30 hover:bg-black/50 border-white/30 h-10 w-10" />
-                    <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white bg-black/30 hover:bg-black/50 border-white/30 h-10 w-10" />
-                  </Carousel>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {galleryImages.map((imgUrl, index) => (
+                    <div key={`${imgUrl}-${index}`}>
+                      <div className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20 aspect-[9/16]">
+                        <MediaPlayer
+                          src={imgUrl}
+                          alt={`Gallery image ${index + 1}`}
+                          priority={index < 8}
+                        />
+                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleImageDownload(imgUrl)}
+                            className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
+                          >
+                            <Download className="h-6 w-6" />
+                            <span className="sr-only">Download</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex justify-center mt-8">
@@ -305,7 +285,7 @@ export default function Home() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-black/20 rounded-lg w-full max-w-4xl">
+              <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-black/20 rounded-lg w-full">
                 <ImageIcon className="w-16 h-16 mb-4 text-white/30" />
                 <p className="text-center text-white/70">
                   No images to display.

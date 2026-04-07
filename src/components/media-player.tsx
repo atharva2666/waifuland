@@ -16,7 +16,7 @@ export function MediaPlayer({ src, alt, priority = false }: MediaPlayerProps) {
       <video
         src={src}
         alt={alt}
-        className="w-full h-auto object-contain rounded-lg"
+        className="w-full h-full object-contain"
         controls
         autoPlay
         loop
@@ -32,9 +32,9 @@ export function MediaPlayer({ src, alt, priority = false }: MediaPlayerProps) {
     <Image
       src={src}
       alt={alt}
-      width={1920}
-      height={1080}
-      className="w-full h-auto object-contain"
+      fill
+      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+      className="object-contain"
       unoptimized={src.endsWith('.gif')}
       priority={priority}
     />
