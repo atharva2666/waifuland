@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition } from "react";
-import { Download, RefreshCw, Loader2, Image as ImageIcon } from "lucide-react";
+import {
+  Download,
+  RefreshCw,
+  Loader2,
+  ImageIcon,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -16,6 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { apiSources } from "./waifu-api";
 import { MediaPlayer } from "@/components/media-player";
 
@@ -122,30 +136,22 @@ export default function Home() {
 
   const handleImageDownload = (url: string | null) => {
     if (!url) return;
-    fetch(url, { cache: "no-cache" })
-      .then((response) => response.blob())
-      .then((blob) => {
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = url.split("/").pop() || "waifu.jpg";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(blobUrl);
-        a.remove();
-        toast({
-          title: "Download Started",
-          description: "Your image is being downloaded.",
-        });
-      })
-      .catch((error) => {
-        console.error("Download failed:", error);
-        toast({
-          variant: "destructive",
-          title: "Download Failed",
-          description: "Could not download the image.",
-        });
+    // We can't use fetch() due to CORS policies on the image servers.
+    // Opening the image in a new tab is a reliable workaround.
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (newWindow) {
+      newWindow.focus();
+      toast({
+        title: "Image opened",
+        description: "You can save the image from the new tab.",
       });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Could not open new tab',
+        description: 'Please check if your browser is blocking pop-ups.',
+      });
+    }
   };
 
   const currentCategories =
@@ -238,35 +244,49 @@ export default function Home() {
 
           <div className="flex-grow flex flex-col items-center justify-center">
             {isGenerating && galleryImages.length === 0 ? (
-              <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-8">
-                <Skeleton className="w-full h-[80vh] rounded-lg bg-white/10" />
+              <div className="w-full max-w-4xl mx-auto">
+                <Carousel>
+                  <CarouselContent>
+                    <CarouselItem>
+                      <Skeleton className="w-full h-[80vh] rounded-lg bg-white/10" />
+                    </CarouselItem>
+                  </CarouselContent>
+                </Carousel>
               </div>
             ) : galleryImages.length > 0 ? (
               <>
-                <div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
-                  {galleryImages.map((imgUrl, index) => (
-                    <div
-                      key={`${imgUrl}-${index}`}
-                      className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20"
-                    >
-                      <MediaPlayer
-                        src={imgUrl}
-                        alt={`Gallery image ${index + 1}`}
-                        priority={index < 2}
-                      />
-                      <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleImageDownload(imgUrl)}
-                          className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
+                <div className="w-full max-w-4xl mx-auto">
+                  <Carousel opts={{ loop: true }}>
+                    <CarouselContent>
+                      {galleryImages.map((imgUrl, index) => (
+                        <CarouselItem
+                          key={`${imgUrl}-${index}`}
+                          className="relative"
                         >
-                          <Download className="h-6 w-6" />
-                          <span className="sr-only">Download</span>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                          <div className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20 aspect-[9/16] sm:aspect-video">
+                            <MediaPlayer
+                              src={imgUrl}
+                              alt={`Gallery image ${index + 1}`}
+                              priority={index < 2}
+                            />
+                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleImageDownload(imgUrl)}
+                                className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
+                              >
+                                <Download className="h-6 w-6" />
+                                <span className="sr-only">Download</span>
+                              </Button>
+                            </div>
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white bg-black/30 hover:bg-black/50 border-white/30 h-10 w-10" />
+                    <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white bg-black/30 hover:bg-black/50 border-white/30 h-10 w-10" />
+                  </Carousel>
                 </div>
 
                 <div className="flex justify-center mt-8">
