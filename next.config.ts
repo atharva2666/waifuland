@@ -48,7 +48,13 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'cdn.waifu.im',
+        hostname: 'cdn.donmai.us',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'danbooru.donmai.us',
         port: '',
         pathname: '/**',
       },
