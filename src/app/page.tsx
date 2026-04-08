@@ -7,6 +7,7 @@ import {
   Loader2,
   ImageIcon,
 } from "lucide-react";
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -127,22 +128,18 @@ export default function Home() {
 
   const handleImageDownload = (url: string | null) => {
     if (!url) return;
-    // We can't use fetch() due to CORS policies on the image servers.
-    // Opening the image in a new tab is a reliable workaround.
-    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-    if (newWindow) {
-      newWindow.focus();
-      toast({
-        title: "Image opened",
-        description: "You can save the image from the new tab.",
-      });
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Could not open new tab',
-        description: 'Please check if your browser is blocking pop-ups.',
-      });
-    }
+
+    // This creates a temporary link to trigger the download.
+    // For cross-origin images, the browser might navigate instead of downloading,
+    // but it's the most direct method without `window.open`.
+    const link = document.createElement('a');
+    link.href = url;
+    const filename = url.substring(url.lastIndexOf('/') + 1);
+    link.download = filename;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const currentCategories =
