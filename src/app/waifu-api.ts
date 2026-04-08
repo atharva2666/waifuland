@@ -12,6 +12,68 @@ export interface ImageApiSource {
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
+// --- waifu.im Implementation ---
+const waifuImApi: ImageApiSource = {
+  name: 'waifu.im',
+  hasNsfw: true,
+  async getTags() {
+    try {
+      const response = await fetch('https://api.waifu.im/tags');
+      if (!response.ok) throw new Error('Failed to fetch tags from waifu.im');
+      const data = await response.json();
+      return {
+        sfw: (data.versatile || []).sort(),
+        nsfw: (data.nsfw || []).sort(),
+      };
+    } catch (error) {
+      console.error('waifu.im getTags error:', error);
+      return {
+        sfw: [ 'waifu', 'maid', 'uniform', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies' ],
+        nsfw: [ 'ass', 'ecchi', 'ero', 'hentai', 'milf', 'oral', 'paizuri' ],
+      };
+    }
+  },
+  async getImages(params) {
+    const { category, isNsfw, count } = params;
+    if (!category) {
+      return { success: false, images: [], message: 'No category selected.' };
+    }
+    
+    const queryParams = new URLSearchParams({
+        included_tags: category,
+        limit: count.toString(),
+        is_nsfw: isNsfw.toString(),
+    });
+
+    if (isNsfw) {
+        queryParams.set('orientation', 'LANDSCAPE');
+    }
+
+    const url = `https://api.waifu.im/search?${queryParams.toString()}`;
+
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API Error: ${response.statusText} (${response.status}) - ${errorData.detail || 'Unknown error'}`);
+      }
+      const data = await response.json();
+
+      if (!data.images || data.images.length === 0) {
+        return { success: true, images: [], message: 'No images found for this selection.' };
+      }
+      
+      const imageUrls = data.images.map((img: any) => img.url);
+      return { success: true, images: imageUrls };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("waifu.im getImages error:", message);
+      return { success: false, images: [], message };
+    }
+  },
+};
+
+
 // --- waifu.pics Implementation ---
 const waifuPicsApi: ImageApiSource = {
   name: 'waifu.pics',
@@ -159,6 +221,7 @@ const nekosBestApi: ImageApiSource = {
 };
 
 export const apiSources: { [key: string]: ImageApiSource } = {
+  'waifu.im': waifuImApi,
   'waifu.pics': waifuPicsApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
