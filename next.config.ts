@@ -46,6 +46,18 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.waifu.im',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.dog.ceo',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
