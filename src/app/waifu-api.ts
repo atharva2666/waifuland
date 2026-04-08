@@ -71,6 +71,179 @@ const danbooruApi: ImageApiSource = {
   },
 };
 
+// --- Gelbooru Implementation ---
+const gelbooruApi: ImageApiSource = {
+  name: 'Gelbooru',
+  hasNsfw: true,
+  async getTags() {
+    // Gelbooru has millions of tags. We provide a curated list of popular SFW and NSFW tags as categories.
+    const sfwTags = [ '1girl', 'solo', 'long_hair', 'smile', 'genshin_impact', 'hololive', 'touhou', 'vocaloid', 'azur_lane', 'arknights' ];
+    const nsfwTags = [ 'pussy', 'sex', 'blowjob', 'nude', 'masturbation', 'ass', 'breasts', 'ahegao', 'tentacles', 'bdsm' ];
+    return Promise.resolve({
+        sfw: sfwTags.sort(),
+        nsfw: nsfwTags.sort(),
+    });
+  },
+  async getImages(params) {
+    const { category, isNsfw, count } = params;
+    if (!category) {
+      return { success: false, images: [], message: 'No category selected.' };
+    }
+
+    const tags = [category];
+    if (isNsfw) {
+      tags.push('rating:explicit');
+    } else {
+      tags.push('rating:safe');
+    }
+    
+    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tags.join(' '))}&limit=${count}`;
+
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText} (${response.status})`);
+      }
+      
+      const text = await response.text();
+      // Gelbooru returns an object with a "post" key, or an empty response if no results.
+      const data = text ? JSON.parse(text) : {};
+
+      if (!data.post || !Array.isArray(data.post) || data.post.length === 0) {
+        return { success: true, images: [], message: 'No images found for this selection.' };
+      }
+      
+      const imageUrls = data.post
+        .filter((post: any) => post.file_url)
+        .map((post: any) => post.file_url);
+        
+      if (imageUrls.length === 0) {
+        return { success: true, images: [], message: 'No valid image URLs found in the response.' };
+      }
+
+      return { success: true, images: imageUrls };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("Gelbooru getImages error:", message);
+      return { success: false, images: [], message };
+    }
+  },
+};
+
+// --- Yande.re Implementation ---
+const yandereApi: ImageApiSource = {
+  name: 'Yande.re',
+  hasNsfw: true,
+  async getTags() {
+    // Curated popular tags
+    const sfwTags = [ 'animal_ears', 'bikini', 'blonde_hair', 'blue_eyes', 'breasts', 'long_hair', 'seifuku', 'swimsuit', 'touhou', 'vocaloid' ];
+    const nsfwTags = [ 'pussy', 'sex', 'nude', 'uncensored', 'ass', 'breasts', 'panties', 'pantyhose', 'pussy_juice', 'areolae' ];
+    return Promise.resolve({
+        sfw: sfwTags.sort(),
+        nsfw: nsfwTags.sort(),
+    });
+  },
+  async getImages(params) {
+    const { category, isNsfw, count } = params;
+    if (!category) {
+      return { success: false, images: [], message: 'No category selected.' };
+    }
+
+    const tags = [category];
+    if (isNsfw) {
+      tags.push('rating:explicit');
+    } else {
+      tags.push('rating:questionable'); // Yande.re doesn't have much 'safe' content, 'questionable' is a better SFW default.
+    }
+    
+    const url = `https://yande.re/post.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}`;
+
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText} (${response.status})`);
+      }
+      const data = await response.json();
+
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return { success: true, images: [], message: 'No images found for this selection.' };
+      }
+      
+      const imageUrls = data
+        .filter((post: any) => post.file_url)
+        .map((post: any) => post.file_url);
+        
+      if (imageUrls.length === 0) {
+        return { success: true, images: [], message: 'No valid image URLs found in the response.' };
+      }
+
+      return { success: true, images: imageUrls };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("Yande.re getImages error:", message);
+      return { success: false, images: [], message };
+    }
+  },
+};
+
+// --- Konachan Implementation ---
+const konachanApi: ImageApiSource = {
+  name: 'Konachan',
+  hasNsfw: true,
+  async getTags() {
+    // Curated popular tags
+    const sfwTags = [ 'animal_ears', 'blonde_hair', 'blue_eyes', 'brown_hair', 'long_hair', 'seifuku', 'smile', 'touhou', 'vocaloid', 'weapon' ];
+    const nsfwTags = [ 'nude', 'pussy', 'sex', 'uncensored', 'ass', 'breasts', 'panties', 'pantyhose', 'cum', 'bondage' ];
+    return Promise.resolve({
+        sfw: sfwTags.sort(),
+        nsfw: nsfwTags.sort(),
+    });
+  },
+  async getImages(params) {
+    const { category, isNsfw, count } = params;
+    if (!category) {
+      return { success: false, images: [], message: 'No category selected.' };
+    }
+
+    const tags = [category];
+    const baseUrl = 'https://konachan.com';
+
+    if (isNsfw) {
+      tags.push('rating:explicit');
+    } else {
+      tags.push('rating:questionable'); // Konachan is similar to yande.re, questionable is better for SFW.
+    }
+    
+    const url = `${baseUrl}/post.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}`;
+
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText} (${response.status})`);
+      }
+      const data = await response.json();
+
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return { success: true, images: [], message: 'No images found for this selection.' };
+      }
+      
+      const imageUrls = data
+        .filter((post: any) => post.file_url)
+        .map((post: any) => post.file_url);
+        
+      if (imageUrls.length === 0) {
+        return { success: true, images: [], message: 'No valid image URLs found in the response.' };
+      }
+
+      return { success: true, images: imageUrls };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("Konachan getImages error:", message);
+      return { success: false, images: [], message };
+    }
+  },
+};
+
 
 // --- waifu.pics Implementation ---
 const waifuPicsApi: ImageApiSource = {
@@ -220,6 +393,9 @@ const nekosBestApi: ImageApiSource = {
 
 export const apiSources: { [key: string]: ImageApiSource } = {
   'danbooru': danbooruApi,
+  'gelbooru': gelbooruApi,
+  'yande.re': yandereApi,
+  'konachan': konachanApi,
   'waifu.pics': waifuPicsApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
