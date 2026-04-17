@@ -2,7 +2,12 @@
 
 import { useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from './ui/button';
 import { MediaPlayer } from './media-player';
 
@@ -50,6 +55,12 @@ export function ImageViewer({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-black/80 backdrop-blur-sm border-0 w-screen h-screen max-w-full rounded-none p-4 flex items-center justify-center">
+        <DialogTitle className="sr-only">Image Viewer</DialogTitle>
+        <DialogDescription className="sr-only">
+          {`Viewing image ${activeIndex + 1} of ${
+            images.length
+          }. Use arrow keys to navigate.`}
+        </DialogDescription>
         <div className="relative w-full h-full flex items-center justify-center">
           <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
             <MediaPlayer
