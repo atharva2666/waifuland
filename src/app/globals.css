@@ -86,5 +86,33 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -20%;
+    left: -20%;
+    width: 50vw;
+    height: 50vh;
+    background: radial-gradient(circle, hsl(var(--accent) / 0.15), transparent 60%);
+    filter: blur(100px);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -20%;
+    right: -20%;
+    width: 60vw;
+    height: 60vh;
+    background: radial-gradient(circle, hsl(var(--primary) / 0.2), transparent 60%);
+    filter: blur(100px);
+    z-index: -1;
+    pointer-events: none;
   }
 }
