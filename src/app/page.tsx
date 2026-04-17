@@ -24,6 +24,17 @@ import {
 } from "@/components/ui/select";
 import { apiSources } from "./waifu-api";
 import { MediaPlayer } from "@/components/media-player";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 
 const IMAGE_FETCH_COUNT = 30;
 
@@ -34,6 +45,8 @@ export default function Home() {
   const [nsfwCategories, setNsfwCategories] = useState<string[]>([]);
 
   const [isNsfw, setIsNsfw] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [password, setPassword] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
   const [isGenerating, startGenerating] = useTransition();
   const { toast } = useToast();
@@ -126,20 +139,50 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory]);
 
-  const handleImageDownload = (url: string | null) => {
+  const handleImageDownload = async (url: string | null) => {
     if (!url) return;
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error("Network response was not ok.");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      const filename = url.substring(url.lastIndexOf("/") + 1);
+      link.download = filename || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Download failed",
+        description:
+          "Could not download the image. The resource may be protected. Opening in a new tab as a fallback.",
+      });
+      window.open(url, "_blank");
+    }
+  };
 
-    // This creates a temporary link to trigger the download.
-    // For cross-origin images, the browser might navigate instead of downloading,
-    // but it's the most direct method without `window.open`.
-    const link = document.createElement('a');
-    link.href = url;
-    const filename = url.substring(url.lastIndexOf('/') + 1);
-    link.download = filename;
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handlePasswordSubmit = () => {
+    if (password === "nsfw") {
+      setIsNsfw(true);
+      setIsPasswordDialogOpen(false);
+      setPassword("");
+      toast({
+        title: "Success!",
+        description: "Secret Mode has been unlocked.",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Incorrect Password",
+        description: "Please try again.",
+      });
+      setPassword("");
+    }
   };
 
   const currentCategories =
@@ -186,12 +229,18 @@ export default function Home() {
                     htmlFor="nsfw-toggle"
                     className="text-base font-medium text-white whitespace-nowrap"
                   >
-                    18+
+                    Secret Mode
                   </Label>
                   <Switch
                     id="nsfw-toggle"
                     checked={isNsfw}
-                    onCheckedChange={setIsNsfw}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setIsPasswordDialogOpen(true);
+                      } else {
+                        setIsNsfw(false);
+                      }
+                    }}
                   />
                 </div>
               )}
@@ -294,6 +343,36 @@ export default function Home() {
             )}
           </div>
         </div>
+        <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Enter Secret Mode</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action requires a password to continue.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-2">
+              <Input
+                id="password"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handlePasswordSubmit();
+                  }
+                }}
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPassword('')}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handlePasswordSubmit}>
+                Enter
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

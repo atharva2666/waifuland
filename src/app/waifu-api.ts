@@ -18,8 +18,8 @@ const danbooruApi: ImageApiSource = {
   hasNsfw: true,
   async getTags() {
     // Danbooru has millions of tags. We provide a curated list of popular SFW and NSFW tags as categories.
-    const sfwTags = [ '1girl', 'solo', 'long_hair', 'smile', 'genshin_impact', 'hololive', 'touhou', 'vocaloid', 'cat_ears', 'school_uniform', 'blue_hair', 'azur_lane', 'arknights', 'fate/grand_order', 'original' ];
-    const nsfwTags = [ 'breasts', 'ass', 'pussy', 'thighhighs', 'sex', 'blowjob', 'genshin_impact', 'hololive', 'panties', 'cum', 'ahegao', 'bdsm', 'yuri', 'bondage', 'school_uniform' ];
+    const sfwTags = [ '1girl', 'solo', 'long_hair', 'smile', 'genshin_impact', 'hololive', 'touhou', 'vocaloid', 'cat_ears', 'school_uniform', 'blue_hair', 'azur_lane', 'arknights', 'fate/grand_order', 'original', 'bangs', 'blonde_hair', 'blush', 'breasts', 'brown_hair', 'hat', 'open_mouth', 'short_hair', 'skirt', 'white_hair', 'another_anime_game', 'black_hair', 'dress', 'eyebrows_visible_through_hair', 'food', 'hair_ornament', 'red_eyes', 'shirt', 'simple_background', 'sword', 'twintails', 'weapon', 'animal_ears', 'blue_eyes', 'braid', 'final_fantasy', 'gloves', 'green_hair', 'gun', 'hair_between_eyes', 'hatsune_miku', 'jewelry', 'long_sleeves', 'multiple_girls', 'pink_hair', 'purple_eyes', 'purple_hair', 'ribbon', 'thighhighs', 'wings', 'yellow_eyes'];
+    const nsfwTags = [ 'breasts', 'ass', 'pussy', 'thighhighs', 'sex', 'blowjob', 'genshin_impact', 'hololive', 'panties', 'cum', 'ahegao', 'bdsm', 'yuri', 'bondage', 'school_uniform', 'anus', 'areolae', 'artist_request', 'barefoot', 'bell', 'bikini', 'bloomers', 'bodysuit', 'bra', 'cameltoe', 'censored', 'cleavage', 'close-up', 'cum_in_pussy', 'cum_on_breasts', 'cunnilingus', 'demon_girl', 'doggy_style', 'elf', 'erect_nipples', 'exposed_anus', 'fingering', 'flat_chest', 'fox_girl', 'garter_belt', 'guro', 'handjob', 'horns', 'incest', 'inverted_nipples', 'leash', 'leotard', 'lingerie', 'loli', 'maid', 'masturbation', 'missionary_position', 'monochrome', 'naked', 'navel', 'necklace', 'nipples', 'nopan', 'nude', 'on_back', 'on_stomach', 'orgy', 'paizuri', 'panty_pull', 'pantyhose', 'penis', 'pov', 'pubic_hair', 'rape', 'see-through', 'seifuku', 'sex_toy', 'shirt_lift', 'sidelocks', 'spread_legs', 'squirt', 'stomach', 'straight_on', 'striped_panties', 'succubus', 'swimsuit', 'tail', 'tentacles', 'threesome', 'tongue', 'tongue_out', 'tribadism', 'undressing', 'uniform', 'vaginal', 'very_long_hair', 'vomit', 'white_panties', 'yaoi'];
     return Promise.resolve({
         sfw: sfwTags.sort(),
         nsfw: nsfwTags.sort(),
@@ -218,8 +218,8 @@ const nekosBestApi: ImageApiSource = {
 };
 
 export const apiSources: { [key: string]: ImageApiSource } = {
-  'danbooru': danbooruApi,
   'waifu.pics': waifuPicsApi,
+  'danbooru': danbooruApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
 };
