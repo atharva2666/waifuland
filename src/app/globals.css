@@ -95,9 +95,9 @@ body {
     position: fixed;
     top: -20%;
     left: -20%;
-    width: 50vw;
-    height: 50vh;
-    background: radial-gradient(circle, hsl(var(--accent) / 0.15), transparent 60%);
+    width: 60vw;
+    height: 60vh;
+    background: radial-gradient(circle, hsl(var(--accent) / 0.2), transparent 70%);
     filter: blur(100px);
     z-index: -1;
     pointer-events: none;
@@ -108,9 +108,9 @@ body {
     position: fixed;
     bottom: -20%;
     right: -20%;
-    width: 60vw;
-    height: 60vh;
-    background: radial-gradient(circle, hsl(var(--primary) / 0.2), transparent 60%);
+    width: 70vw;
+    height: 70vh;
+    background: radial-gradient(circle, hsl(var(--primary) / 0.3), transparent 70%);
     filter: blur(100px);
     z-index: -1;
     pointer-events: none;
