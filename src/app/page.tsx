@@ -104,7 +104,7 @@ export default function Home() {
           } else {
             if (isNewSearch) setGalleryImages([]);
             toast({
-              title: "No images found",
+              title: "No bitches found",
               description: result.message || "Try another category or toggle.",
             });
           }
@@ -172,14 +172,14 @@ export default function Home() {
       setIsPasswordDialogOpen(false);
       setPassword("");
       toast({
-        title: "Success!",
-        description: "Secret Mode has been unlocked.",
+        title: "Access Granted",
+        description: "Let the games begin.",
       });
     } else {
       toast({
         variant: "destructive",
         title: "Incorrect Password",
-        description: "Please try again.",
+        description: "Wrong key, try again.",
       });
       setPassword("");
     }
@@ -197,7 +197,7 @@ export default function Home() {
               Olivia
             </h1>
             <p className="text-white/60 mt-1">
-              Explore images and media from multiple APIs
+              made by Coderbee0_Ggs( Atharva Bhatnagar) and other provider
             </p>
           </div>
 
@@ -334,10 +334,10 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-black/20 rounded-lg w-full">
                 <ImageIcon className="w-16 h-16 mb-4 text-white/30" />
                 <p className="text-center text-white/70">
-                  No images to display.
+                  It's empty in here...
                 </p>
                 <p className="text-center text-white/50 text-sm">
-                  Select a category to get started.
+                  Select a category to get the party started.
                 </p>
               </div>
             )}
