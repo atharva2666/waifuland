@@ -6,8 +6,8 @@ import {
   RefreshCw,
   Loader2,
   ImageIcon,
+  ChevronUp,
 } from "lucide-react";
-import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { apiSources } from "./waifu-api";
 import { MediaPlayer } from "@/components/media-player";
+import { ImageViewer } from "@/components/image-viewer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +52,24 @@ export default function Home() {
   const [isGenerating, startGenerating] = useTransition();
   const { toast } = useToast();
 
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null
+  );
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
   const apiSource = apiSources[apiSourceKey];
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 400);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
     async function getTags() {
@@ -188,6 +206,23 @@ export default function Home() {
   const currentCategories =
     isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
 
+  const handleOpenViewer = (index: number) => setSelectedImageIndex(index);
+  const handleCloseViewer = () => setSelectedImageIndex(null);
+  const handleNextImage = () => {
+    if (selectedImageIndex !== null) {
+      setSelectedImageIndex(
+        (prevIndex) => (prevIndex! + 1) % galleryImages.length
+      );
+    }
+  };
+  const handlePrevImage = () => {
+    if (selectedImageIndex !== null) {
+      setSelectedImageIndex(
+        (prevIndex) => (prevIndex! - 1 + galleryImages.length) % galleryImages.length
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-body">
       <main className="w-full p-4 sm:p-6 md:p-8">
@@ -292,24 +327,32 @@ export default function Home() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {galleryImages.map((imgUrl, index) => (
-                    <div key={`${imgUrl}-${index}`}>
-                      <div className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20 aspect-[9/16]">
+                    <div
+                      key={`${imgUrl}-${index}`}
+                      className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20 aspect-[9/16] cursor-pointer"
+                      onClick={() => handleOpenViewer(index)}
+                    >
+                      <div className="w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105">
                         <MediaPlayer
                           src={imgUrl}
                           alt={`Gallery image ${index + 1}`}
                           priority={index < 8}
+                          objectFit="cover"
                         />
-                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleImageDownload(imgUrl)}
-                            className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
-                          >
-                            <Download className="h-6 w-6" />
-                            <span className="sr-only">Download</span>
-                          </Button>
-                        </div>
+                      </div>
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleImageDownload(imgUrl);
+                          }}
+                          className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
+                        >
+                          <Download className="h-6 w-6" />
+                          <span className="sr-only">Download</span>
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -343,7 +386,10 @@ export default function Home() {
             )}
           </div>
         </div>
-        <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <AlertDialog
+          open={isPasswordDialogOpen}
+          onOpenChange={setIsPasswordDialogOpen}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Enter Secret Mode</AlertDialogTitle>
@@ -359,20 +405,43 @@ export default function Home() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     handlePasswordSubmit();
                   }
                 }}
               />
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPassword('')}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setPassword("")}>
+                Cancel
+              </AlertDialogCancel>
               <AlertDialogAction onClick={handlePasswordSubmit}>
                 Enter
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <ImageViewer
+          images={galleryImages}
+          isOpen={selectedImageIndex !== null}
+          activeIndex={selectedImageIndex ?? 0}
+          onClose={handleCloseViewer}
+          onNext={handleNextImage}
+          onPrev={handlePrevImage}
+        />
+
+        {showBackToTop && (
+          <Button
+            onClick={scrollToTop}
+            variant="secondary"
+            size="icon"
+            className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg z-50"
+          >
+            <ChevronUp className="h-8 w-8" />
+            <span className="sr-only">Back to top</span>
+          </Button>
+        )}
       </main>
     </div>
   );

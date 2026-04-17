@@ -6,9 +6,15 @@ interface MediaPlayerProps {
   src: string;
   alt: string;
   priority?: boolean;
+  objectFit?: 'cover' | 'contain';
 }
 
-export function MediaPlayer({ src, alt, priority = false }: MediaPlayerProps) {
+export function MediaPlayer({
+  src,
+  alt,
+  priority = false,
+  objectFit = 'contain',
+}: MediaPlayerProps) {
   const isVideo = /\.(mp4|webm)$/i.test(src);
 
   if (isVideo) {
@@ -16,7 +22,7 @@ export function MediaPlayer({ src, alt, priority = false }: MediaPlayerProps) {
       <video
         src={src}
         alt={alt}
-        className="w-full h-full object-contain"
+        className={`w-full h-full object-${objectFit}`}
         controls
         autoPlay
         loop
@@ -34,7 +40,7 @@ export function MediaPlayer({ src, alt, priority = false }: MediaPlayerProps) {
       alt={alt}
       fill
       sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-      className="object-contain"
+      className={`object-${objectFit}`}
       unoptimized={src.endsWith('.gif')}
       priority={priority}
     />
