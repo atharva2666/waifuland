@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import { apiSources } from "./waifu-api";
 import { MediaPlayer } from "@/components/media-player";
-import { ImageViewer } from "@/components/image-viewer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,9 +51,6 @@ export default function Home() {
   const [isGenerating, startGenerating] = useTransition();
   const { toast } = useToast();
 
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
-    null
-  );
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   const apiSource = apiSources[apiSourceKey];
@@ -157,31 +153,9 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory]);
 
-  const handleImageDownload = async (url: string | null) => {
+  const handleImageDownload = (url: string | null) => {
     if (!url) return;
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) throw new Error("Network response was not ok.");
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      const filename = url.substring(url.lastIndexOf("/") + 1);
-      link.download = filename || "download";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error("Download failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Download failed",
-        description:
-          "Could not download the image. The resource may be protected. Opening in a new tab as a fallback.",
-      });
-      window.open(url, "_blank");
-    }
+    window.open(url, "_blank");
   };
 
   const handlePasswordSubmit = () => {
@@ -205,23 +179,6 @@ export default function Home() {
 
   const currentCategories =
     isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
-
-  const handleOpenViewer = (index: number) => setSelectedImageIndex(index);
-  const handleCloseViewer = () => setSelectedImageIndex(null);
-  const handleNextImage = () => {
-    if (selectedImageIndex !== null) {
-      setSelectedImageIndex(
-        (prevIndex) => (prevIndex! + 1) % galleryImages.length
-      );
-    }
-  };
-  const handlePrevImage = () => {
-    if (selectedImageIndex !== null) {
-      setSelectedImageIndex(
-        (prevIndex) => (prevIndex! - 1 + galleryImages.length) % galleryImages.length
-      );
-    }
-  };
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-body">
@@ -330,7 +287,7 @@ export default function Home() {
                     <div
                       key={`${imgUrl}-${index}`}
                       className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20 aspect-[9/16] cursor-pointer"
-                      onClick={() => handleOpenViewer(index)}
+                      onClick={() => window.open(imgUrl, "_blank")}
                     >
                       <div className="w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105">
                         <MediaPlayer
@@ -421,15 +378,6 @@ export default function Home() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        <ImageViewer
-          images={galleryImages}
-          isOpen={selectedImageIndex !== null}
-          activeIndex={selectedImageIndex ?? 0}
-          onClose={handleCloseViewer}
-          onNext={handleNextImage}
-          onPrev={handlePrevImage}
-        />
 
         {showBackToTop && (
           <Button
