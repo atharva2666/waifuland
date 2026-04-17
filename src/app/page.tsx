@@ -181,29 +181,29 @@ export default function Home() {
     isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground font-body">
+    <div className="min-h-screen w-full font-body">
       <main className="w-full p-4 sm:p-6 md:p-8">
         <div className="w-full max-w-7xl mx-auto flex flex-col">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white drop-shadow-md">
+            <h1 className="text-4xl font-bold text-foreground drop-shadow-md">
               Olivia
             </h1>
-            <p className="text-white/60 mt-1">
+            <p className="text-muted-foreground mt-1">
               made by Coderbee0_Ggs( Atharva Bhatnagar) and other provider
             </p>
           </div>
 
           <div className="py-4 mb-8">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg border border-white/10 bg-black/20 p-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg border bg-card p-4">
               <div className="flex items-center gap-4 self-start sm:self-center">
                 <Label
                   htmlFor="api-source"
-                  className="text-base font-medium text-white whitespace-nowrap"
+                  className="text-base font-medium text-foreground whitespace-nowrap"
                 >
                   API Source
                 </Label>
                 <Select value={apiSourceKey} onValueChange={setApiSourceKey}>
-                  <SelectTrigger className="w-[180px] bg-transparent border-white/20 hover:bg-white/10 text-white">
+                  <SelectTrigger className="w-[180px] bg-transparent border-input hover:bg-accent hover:text-accent-foreground">
                     <SelectValue placeholder="Select an API" />
                   </SelectTrigger>
                   <SelectContent>
@@ -219,7 +219,7 @@ export default function Home() {
                 <div className="flex items-center gap-4 self-start sm:self-center">
                   <Label
                     htmlFor="nsfw-toggle"
-                    className="text-base font-medium text-white whitespace-nowrap"
+                    className="text-base font-medium text-foreground whitespace-nowrap"
                   >
                     Secret Mode
                   </Label>
@@ -238,7 +238,7 @@ export default function Home() {
               )}
               <Separator
                 orientation="vertical"
-                className="h-8 hidden sm:block bg-white/10"
+                className="h-8 hidden sm:block"
               />
               <div className="flex-1 w-full sm:w-auto">
                 <ScrollArea className="w-full">
@@ -251,7 +251,7 @@ export default function Home() {
                             activeCategory === cat ? "secondary" : "outline"
                           }
                           onClick={() => setActiveCategory(cat)}
-                          className="justify-start capitalize shrink-0 border-white/20 bg-transparent hover:bg-white/10 hover:text-white"
+                          className="justify-start capitalize shrink-0 bg-transparent"
                         >
                           {cat.replace(/_/g, " ")}
                         </Button>
@@ -260,7 +260,7 @@ export default function Home() {
                       Array.from({ length: 10 }).map((_, i) => (
                         <Skeleton
                           key={i}
-                          className="h-10 w-24 rounded-md bg-white/10"
+                          className="h-10 w-24 rounded-md bg-muted"
                         />
                       ))
                     )}
@@ -276,7 +276,7 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="aspect-[9/16] rounded-lg">
-                    <Skeleton className="w-full h-full bg-white/10" />
+                    <Skeleton className="w-full h-full bg-muted" />
                   </div>
                 ))}
               </div>
@@ -286,7 +286,7 @@ export default function Home() {
                   {galleryImages.map((imgUrl, index) => (
                     <div
                       key={`${imgUrl}-${index}`}
-                      className="relative rounded-lg overflow-hidden group border border-white/10 shadow-lg bg-black/20 aspect-[9/16] cursor-pointer"
+                      className="relative rounded-lg overflow-hidden group border bg-card shadow-lg aspect-[9/16] cursor-pointer"
                       onClick={() => window.open(imgUrl, "_blank")}
                     >
                       <div className="w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105">
@@ -305,7 +305,7 @@ export default function Home() {
                             e.stopPropagation();
                             handleImageDownload(imgUrl);
                           }}
-                          className="text-white border-white/50 bg-black/20 hover:bg-black/40 hover:text-white backdrop-blur-sm h-12 w-12 rounded-full"
+                          className="text-foreground border-border/50 bg-background/20 hover:bg-background/40 hover:text-foreground backdrop-blur-sm h-12 w-12 rounded-full"
                         >
                           <Download className="h-6 w-6" />
                           <span className="sr-only">Download</span>
@@ -331,12 +331,12 @@ export default function Home() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-black/20 rounded-lg w-full">
-                <ImageIcon className="w-16 h-16 mb-4 text-white/30" />
-                <p className="text-center text-white/70">
+              <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-card rounded-lg w-full">
+                <ImageIcon className="w-16 h-16 mb-4 text-muted-foreground/30" />
+                <p className="text-center text-foreground/70">
                   It's empty in here...
                 </p>
-                <p className="text-center text-white/50 text-sm">
+                <p className="text-center text-muted-foreground text-sm">
                   Select a category to get the party started.
                 </p>
               </div>
