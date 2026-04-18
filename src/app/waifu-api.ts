@@ -170,7 +170,12 @@ const waifuImApi: ImageApiSource = {
       const nsfwTags = (data.nsfw || []).sort();
 
       if (sfwTags.length === 0 && nsfwTags.length === 0) {
-          throw new Error("API returned empty tags, using fallback.");
+        console.warn("waifu.im API returned empty tags, using fallback tags.");
+        // This is a fallback in case the API returns empty tags.
+        return {
+          sfw: ['waifu', 'maid', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies', 'uniform'].sort(),
+          nsfw: ['ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'ero'].sort(),
+        };
       }
 
       return {
@@ -179,7 +184,7 @@ const waifuImApi: ImageApiSource = {
       };
     } catch (error) {
       console.error('waifu.im getTags error:', error);
-      // Fallback tags in case the API call fails or returns empty data.
+      // Fallback tags in case the API call fails.
       return {
         sfw: ['waifu', 'maid', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies', 'uniform'].sort(),
         nsfw: ['ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'ero'].sort(),
