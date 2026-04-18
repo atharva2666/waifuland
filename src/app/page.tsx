@@ -274,7 +274,7 @@ export default function Home() {
       <main className="w-full p-4 sm:p-6 md:p-8">
         <div className="w-full max-w-7xl mx-auto flex flex-col">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-foreground drop-shadow-md">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent drop-shadow-md">
               Yoursonal
             </h1>
             <p className="text-muted-foreground mt-1">
