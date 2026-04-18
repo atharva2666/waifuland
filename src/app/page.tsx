@@ -42,7 +42,7 @@ import { ImageViewer } from "@/components/image-viewer";
 const IMAGE_FETCH_COUNT = 30;
 
 export default function Home() {
-  const [apiSourceKey, setApiSourceKey] = useState(Object.keys(apiSources)[0]);
+  const [apiSourceKey, setApiSourceKey] = useState('jikan');
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [sfwCategories, setSfwCategories] = useState<string[]>([]);
   const [nsfwCategories, setNsfwCategories] = useState<string[]>([]);

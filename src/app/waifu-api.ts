@@ -15,6 +15,98 @@ export interface ImageApiSource {
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
+let animeListCache: { id: number; name: string }[] = [];
+
+// --- Jikan Implementation ---
+const jikanApi: ImageApiSource = {
+  name: 'Jikan',
+  hasNsfw: false,
+  sortingSupported: false,
+  async getTags() {
+    if (animeListCache.length > 0) {
+        return { sfw: animeListCache.map(a => a.name), nsfw: [] };
+    }
+
+    try {
+      const response = await fetch('https://api.jikan.moe/v4/top/anime');
+      if (!response.ok) throw new Error('Failed to fetch top anime from Jikan');
+      const data = await response.json();
+      
+      if (data && data.data) {
+        animeListCache = data.data.map((anime: any) => ({
+            id: anime.mal_id,
+            name: anime.title,
+        }));
+        return { sfw: animeListCache.map(a => a.name), nsfw: [] };
+      }
+      throw new Error('Invalid data format from Jikan API');
+    } catch (error) {
+      console.error('Jikan getTags error:', error);
+      // Fallback to a hardcoded list if the API fails
+      const fallbackAnime = [
+        { id: 16498, name: 'Attack on Titan' },
+        { id: 5114, name: 'Fullmetal Alchemist: Brotherhood' },
+        { id: 9253, name: 'Steins;Gate' },
+        { id: 28977, name: 'Gintama°' },
+        { id: 11061, name: 'Hunter x Hunter (2011)' },
+        { id: 38524, name: 'Vinland Saga' },
+        { id: 42938, name: 'Jujutsu Kaisen' },
+        { id: 30276, name: 'One Punch Man' },
+        { id: 9969, name: 'Gintama\'' },
+        { id: 1535, name: 'Death Note' },
+        { id: 21, name: 'One Piece' },
+        { id: 20, name: 'Naruto' },
+        { id: 226, name: 'Elfen Lied' },
+        { id: 269, name: 'Bleach' },
+        { id: 31964, name: 'Boku no Hero Academia' },
+        { id: 32281, name: 'Kimi no Na wa.' },
+        { id: 37510, name: 'Mob Psycho 100 II' },
+        { id: 40748, name: 'Jujutsu Kaisen (TV)'},
+        { id: 38000, name: 'Kimetsu no Yaiba' },
+        { id: 1, name: 'Cowboy Bebop'}
+      ];
+      animeListCache = fallbackAnime;
+      return { sfw: animeListCache.map(a => a.name), nsfw: [] };
+    }
+  },
+  async getImages(params) {
+    const { category } = params;
+    if (!category) {
+      return { success: false, images: [], message: 'No anime selected.' };
+    }
+
+    if (animeListCache.length === 0) {
+        await this.getTags(); // Ensure tags are loaded if not already
+    }
+
+    const anime = animeListCache.find(a => a.name === category);
+    if (!anime) {
+      return { success: false, images: [], message: `Anime "${category}" not found.` };
+    }
+
+    const url = `https://api.jikan.moe/v4/anime/${anime.id}/pictures`;
+
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText} (${response.status})`);
+      }
+      const data = await response.json();
+      const imageUrls = data.data?.map((pic: any) => pic.jpg.image_url) || [];
+
+      if (imageUrls.length === 0) {
+        return { success: true, images: [], message: 'No images found for this anime.' };
+      }
+      
+      return { success: true, images: [...new Set(imageUrls)] };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("Jikan getImages error:", message);
+      return { success: false, images: [], message };
+    }
+  },
+};
+
 // --- Danbooru Implementation ---
 const danbooruApi: ImageApiSource = {
   name: 'Danbooru',
@@ -235,6 +327,7 @@ const nekosBestApi: ImageApiSource = {
 };
 
 export const apiSources: { [key: string]: ImageApiSource } = {
+  'jikan': jikanApi,
   'waifu.pics': waifuPicsApi,
   'danbooru': danbooruApi,
   'nekos.life': nekosLifeApi,
