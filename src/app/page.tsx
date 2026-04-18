@@ -281,7 +281,7 @@ export default function Home() {
               Your vision, your personal collection.
             </p>
             <p className="text-xs text-muted-foreground/80 mt-2">
-              Powered by Jikan, Danbooru, and more.
+              Made by Atharva Bhatnagar (Coderbee0_Ggs) and other providers
             </p>
           </div>
 
