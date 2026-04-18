@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const IMAGE_FETCH_COUNT = 30;
 
@@ -53,8 +54,33 @@ export default function Home() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
+  const [isMounted, setIsMounted] = useState(false);
 
   const apiSource = apiSources[apiSourceKey];
+
+  useEffect(() => {
+    const storedApiSourceKey = localStorage.getItem('apiSourceKey');
+    if (storedApiSourceKey && apiSources[storedApiSourceKey]) {
+      setApiSourceKey(storedApiSourceKey);
+    }
+    const storedIsNsfw = localStorage.getItem('isNsfw') === 'true';
+    if (storedIsNsfw) {
+      setIsNsfw(true);
+    }
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('apiSourceKey', apiSourceKey);
+    }
+  }, [apiSourceKey, isMounted]);
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('isNsfw', String(isNsfw));
+    }
+  }, [isNsfw, isMounted]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -70,6 +96,7 @@ export default function Home() {
 
   useEffect(() => {
     async function getTags() {
+      if (!isMounted) return;
       setGalleryImages([]);
       setActiveCategory("");
       setSfwCategories([]);
@@ -91,7 +118,7 @@ export default function Home() {
     }
     getTags();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiSourceKey]);
+  }, [apiSourceKey, isMounted]);
 
   const fetchAndSetGallery = useCallback(
     async (isNewSearch = false) => {
@@ -99,7 +126,7 @@ export default function Home() {
       if (!isNewSearch && isGenerating) return;
 
       startGenerating(async () => {
-        const currentPage = isNewSearch ? 1 : page + 1;
+        const currentPage = isNewSearch ? 1 : page;
         if (isNewSearch) {
           setGalleryImages([]);
         }
@@ -113,7 +140,7 @@ export default function Home() {
 
         if (result.success) {
           if (result.images.length > 0) {
-            setPage(currentPage);
+            setPage(currentPage + 1);
             if (isNewSearch) {
               setGalleryImages(result.images);
             } else {
@@ -168,6 +195,7 @@ export default function Home() {
   }, [isGenerating, galleryImages.length, fetchAndSetGallery]);
 
   useEffect(() => {
+    if (!isMounted) return;
     const currentList =
       isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
     if (currentList.length > 0 && !currentList.includes(activeCategory)) {
@@ -176,10 +204,11 @@ export default function Home() {
       fetchAndSetGallery(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNsfw]);
+  }, [isNsfw, isMounted]);
 
   useEffect(() => {
     if (activeCategory) {
+      setPage(1);
       fetchAndSetGallery(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,27 +276,30 @@ export default function Home() {
                   </SelectContent>
                 </Select>
               </div>
-              {apiSource.hasNsfw && (
-                <div className="flex items-center gap-4 self-start sm:self-center">
-                  <Label
-                    htmlFor="nsfw-toggle"
-                    className="text-base font-medium text-foreground whitespace-nowrap"
-                  >
-                    Secret Mode
-                  </Label>
-                  <Switch
-                    id="nsfw-toggle"
-                    checked={isNsfw}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setIsPasswordDialogOpen(true);
-                      } else {
-                        setIsNsfw(false);
-                      }
-                    }}
-                  />
-                </div>
-              )}
+              <div className="flex items-center gap-4 self-start sm:self-center">
+                {apiSource.hasNsfw && (
+                  <div className="flex items-center gap-4 self-start sm:self-center">
+                    <Label
+                      htmlFor="nsfw-toggle"
+                      className="text-base font-medium text-foreground whitespace-nowrap"
+                    >
+                      Secret Mode
+                    </Label>
+                    <Switch
+                      id="nsfw-toggle"
+                      checked={isNsfw}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setIsPasswordDialogOpen(true);
+                        } else {
+                          setIsNsfw(false);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+                <ThemeToggle />
+              </div>
               <Separator
                 orientation="vertical"
                 className="h-8 hidden sm:block"
