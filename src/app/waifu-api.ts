@@ -163,15 +163,28 @@ const waifuImApi: ImageApiSource = {
   async getTags() {
     try {
       const response = await fetch('https://api.waifu.im/tags');
-      if (!response.ok) throw new Error('Failed to fetch tags from waifu.im, using fallback.');
+      if (!response.ok) {
+        console.error('Failed to fetch tags from waifu.im, using fallback.');
+        return {
+          sfw: ['waifu', 'maid', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies', 'uniform'].sort(),
+          nsfw: ['ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'ero'].sort(),
+        };
+      }
       const data = await response.json();
       
+      if (!data || (!data.sfw && !data.nsfw && !data.versatile)) {
+        console.warn("waifu.im API returned invalid tags object, using fallback tags.");
+        return {
+            sfw: ['waifu', 'maid', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies', 'uniform'].sort(),
+            nsfw: ['ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'ero'].sort(),
+        };
+      }
+
       const sfwTags = [...new Set([...(data.sfw || []), ...(data.versatile || [])])].sort();
       const nsfwTags = (data.nsfw || []).sort();
 
       if (sfwTags.length === 0 && nsfwTags.length === 0) {
         console.warn("waifu.im API returned empty tags, using fallback tags.");
-        // This is a fallback in case the API returns empty tags.
         return {
           sfw: ['waifu', 'maid', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies', 'uniform'].sort(),
           nsfw: ['ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'ero'].sort(),
@@ -200,13 +213,7 @@ const waifuImApi: ImageApiSource = {
     const url = new URL('https://api.waifu.im/search');
     url.searchParams.append('included_tags', category);
     url.searchParams.append('many', 'true');
-    
-    // The waifu.im API is particular. It is better to only specify the NSFW
-    // flag when browsing in secret mode, and let the tag define the content
-    // type otherwise. This avoids conflicts that can cause an error.
-    if (isNsfw) {
-      url.searchParams.append('is_nsfw', 'true');
-    }
+    url.searchParams.append('is_nsfw', isNsfw ? 'true' : 'false');
 
     try {
       const response = await fetch(url.toString(), {
