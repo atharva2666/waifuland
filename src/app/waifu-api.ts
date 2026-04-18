@@ -71,8 +71,8 @@ const animeApi: ImageApiSource = {
     
     if (sort) {
       if (sort === 'score') {
-        // For popularity, search within the last month and order by score to prevent timeouts.
-        tags.push('date:>=1_month_ago');
+        // For popularity, search within the last week and order by score to prevent timeouts.
+        tags.push('date:>=1_week_ago');
         tags.push('order:score');
       } else {
         // for 'id' -> 'Newest'
@@ -143,8 +143,8 @@ const danbooruApi: ImageApiSource = {
     
     if (sort) {
       if (sort === 'score') {
-        // For popularity, search within the last month and order by score to prevent timeouts.
-        tags.push('date:>=1_month_ago');
+        // For popularity, search within the last week and order by score to prevent timeouts.
+        tags.push('date:>=1_week_ago');
         tags.push('order:score');
       } else {
         // for 'id' -> 'Newest'
