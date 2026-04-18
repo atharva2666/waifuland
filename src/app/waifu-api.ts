@@ -221,6 +221,12 @@ const waifuImApi: ImageApiSource = {
         cache: 'no-store',
       });
 
+      // The waifu.im API returns 404 if no images are found for a query.
+      // We should handle this gracefully as "no results" instead of an error.
+      if (response.status === 404) {
+        return { success: true, images: [], message: 'No images found for this selection.' };
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
         throw new Error(`API Error: ${errorData.message || response.statusText} (${response.status})`);
