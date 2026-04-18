@@ -283,110 +283,136 @@ export default function Home() {
           </div>
 
           <div className="py-4 mb-8">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg border bg-card p-4">
-              <div className="flex items-center gap-4 self-start sm:self-center flex-wrap">
-                <div className="flex items-center gap-4">
-                  <Label
-                    htmlFor="api-source"
-                    className="text-base font-medium text-foreground whitespace-nowrap"
-                  >
-                    API Source
-                  </Label>
-                  <Select value={apiSourceKey} onValueChange={(val) => { setApiSourceKey(val); setViewingLikes(false);}}>
-                    <SelectTrigger className="w-[180px] bg-transparent border-input hover:bg-accent hover:text-accent-foreground">
-                      <SelectValue placeholder="Select an API" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(apiSources).map((key) => (
-                        <SelectItem key={key} value={key}>
-                          {apiSources[key].name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                 {apiSource.sortingSupported && (
-                  <div className="flex items-center gap-4">
-                     <Label
-                      htmlFor="sort-order"
-                      className="text-base font-medium text-foreground whitespace-nowrap"
-                    >
-                      Sort By
+            <div className="rounded-lg border bg-card p-4">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="api-source" className="text-sm font-medium">
+                      Source
                     </Label>
-                    <Select value={sortOrder} onValueChange={setSortOrder} disabled={viewingLikes}>
-                       <SelectTrigger className="w-[180px] bg-transparent border-input hover:bg-accent hover:text-accent-foreground">
-                        <SelectValue placeholder="Sort by" />
+                    <Select
+                      value={apiSourceKey}
+                      onValueChange={(val) => {
+                        setApiSourceKey(val);
+                        setViewingLikes(false);
+                      }}
+                    >
+                      <SelectTrigger className="w-[150px] h-9 text-sm">
+                        <SelectValue placeholder="Select an API" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="score">Popularity</SelectItem>
-                        <SelectItem value="id">Newest</SelectItem>
+                        {Object.keys(apiSources).map((key) => (
+                          <SelectItem key={key} value={key}>
+                            {apiSources[key].name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
-                {apiSource.hasNsfw && (
-                  <div className="flex items-center gap-4">
-                    <Label
-                      htmlFor="nsfw-toggle"
-                      className="text-base font-medium text-foreground whitespace-nowrap"
-                    >
-                      Secret Mode
-                    </Label>
-                    <Switch
-                      id="nsfw-toggle"
-                      checked={isNsfw}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setIsPasswordDialogOpen(true);
-                        } else {
-                          setIsNsfw(false);
-                        }
-                      }}
-                    />
+                  {apiSource.sortingSupported && (
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor="sort-order"
+                        className="text-sm font-medium"
+                      >
+                        Sort By
+                      </Label>
+                      <Select
+                        value={sortOrder}
+                        onValueChange={setSortOrder}
+                        disabled={viewingLikes}
+                      >
+                        <SelectTrigger className="w-[150px] h-9 text-sm">
+                          <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="score">Popularity</SelectItem>
+                          <SelectItem value="id">Newest</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {apiSource.hasNsfw && (
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor="nsfw-toggle"
+                        className="text-sm font-medium"
+                      >
+                        Secret Mode
+                      </Label>
+                      <Switch
+                        id="nsfw-toggle"
+                        checked={isNsfw}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setIsPasswordDialogOpen(true);
+                          } else {
+                            setIsNsfw(false);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex-grow" />
+                  <div className="flex items-center gap-2">
+                    <ThemeToggle />
                   </div>
-                )}
-                <ThemeToggle />
-              </div>
-              <Separator
-                orientation="vertical"
-                className="h-8 hidden sm:block"
-              />
-              <div className="flex-1 w-full sm:w-auto">
-                <ScrollArea className="w-full">
-                  <div className="flex items-center gap-2 pb-2">
-                     <Button
+                </div>
+
+                <Separator />
+
+                <div className="flex-1 w-full">
+                  <ScrollArea className="w-full">
+                    <div className="flex items-center gap-2 pb-2">
+                      <Button
                         key="likes"
                         variant={viewingLikes ? "secondary" : "outline"}
                         onClick={() => setViewingLikes(!viewingLikes)}
-                        className="justify-start shrink-0 bg-transparent"
+                        className="justify-start shrink-0 h-9"
                       >
-                        <Heart className={`mr-2 ${likedImages.length > 0 ? 'text-red-500 fill-current' : ''}`} />
+                        <Heart
+                          className={`mr-2 h-4 w-4 ${
+                            likedImages.length > 0
+                              ? "text-red-500 fill-current"
+                              : ""
+                          }`}
+                        />
                         My Likes ({likedImages.length})
                       </Button>
-                    {currentCategories.length > 0 ? (
-                      currentCategories.map((cat) => (
-                        <Button
-                          key={cat}
-                          variant={
-                            activeCategory === cat && !viewingLikes ? "secondary" : "outline"
-                          }
-                          onClick={() => { setActiveCategory(cat); setViewingLikes(false); }}
-                          className="justify-start capitalize shrink-0 bg-transparent"
-                        >
-                          {cat.replace(/_/g, " ")}
-                        </Button>
-                      ))
-                    ) : (
-                       !viewingLikes && Array.from({ length: 10 }).map((_, i) => (
-                        <Skeleton
-                          key={i}
-                          className="h-10 w-24 rounded-md bg-muted"
-                        />
-                      ))
-                    )}
-                  </div>
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+
+                      <Separator orientation="vertical" className="h-6 mx-1" />
+
+                      {currentCategories.length > 0 ? (
+                        currentCategories.map((cat) => (
+                          <Button
+                            key={cat}
+                            variant={
+                              activeCategory === cat && !viewingLikes
+                                ? "secondary"
+                                : "outline"
+                            }
+                            onClick={() => {
+                              setActiveCategory(cat);
+                              setViewingLikes(false);
+                            }}
+                            className="justify-start capitalize shrink-0 h-9"
+                          >
+                            {cat.replace(/_/g, " ")}
+                          </Button>
+                        ))
+                      ) : (
+                        !viewingLikes &&
+                        Array.from({ length: 10 }).map((_, i) => (
+                          <Skeleton
+                            key={i}
+                            className="h-9 w-24 rounded-md"
+                          />
+                        ))
+                      )}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </div>
               </div>
             </div>
           </div>
