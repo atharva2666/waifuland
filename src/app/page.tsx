@@ -278,7 +278,7 @@ export default function Home() {
               Yoursonal
             </h1>
             <p className="text-muted-foreground mt-1">
-              Explore images and media from multiple APIs
+              Your vision, your personal collection.
             </p>
           </div>
 
