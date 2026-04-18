@@ -71,8 +71,9 @@ const animeApi: ImageApiSource = {
     
     if (sort) {
       if (sort === 'score') {
-        // Use 'rank' for popularity as 'score' can time out on large tags.
-        tags.push('order:rank');
+        // For popularity, filter by a minimum score to avoid timeouts on large tags.
+        // The default sort order (by date) will apply.
+        tags.push('score:>=75');
       } else {
         // for 'id' -> 'Newest'
         tags.push(`order:${sort}`);
@@ -142,8 +143,9 @@ const danbooruApi: ImageApiSource = {
     
     if (sort) {
       if (sort === 'score') {
-        // Use 'rank' for popularity as 'score' can time out on large tags.
-        tags.push('order:rank');
+        // For popularity, filter by a minimum score to avoid timeouts on large tags.
+        // The default sort order (by date) will apply.
+        tags.push('score:>=75');
       } else {
         // for 'id' -> 'Newest'
         tags.push(`order:${sort}`);
