@@ -93,11 +93,13 @@ const waifuPicsApi: ImageApiSource = {
     }
   },
   async getImages(params) {
-    const { category, isNsfw } = params;
+    const { category, isNsfw, count } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
     const type = isNsfw ? 'nsfw' : 'sfw';
+    
+    // waifu.pics' /many endpoint can only fetch 30 at a time.
     const url = `https://api.waifu.pics/many/${type}/${category}`;
 
     try {
@@ -235,11 +237,11 @@ const danbooruMangaApi: ImageApiSource = {
       return { success: false, images: [], message: 'No category selected.' };
     }
 
-    const tags = ['manga', category];
+    const tags = [`manga ${category}`];
     if (isNsfw) {
       tags.push('rating:explicit');
     } else {
-      tags.push('-rating:explicit');
+      tags.push('rating:general');
     }
     
     const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&random=true`;
