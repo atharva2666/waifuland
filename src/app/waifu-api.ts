@@ -205,7 +205,7 @@ const waifuImApi: ImageApiSource = {
     }
   },
   async getImages(params) {
-    const { category, isNsfw } = params;
+    const { category } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
@@ -213,7 +213,6 @@ const waifuImApi: ImageApiSource = {
     const url = new URL('https://api.waifu.im/search');
     url.searchParams.append('included_tags', category);
     url.searchParams.append('many', 'true');
-    url.searchParams.append('is_nsfw', isNsfw ? 'true' : 'false');
 
     try {
       const response = await fetch(url.toString(), {
