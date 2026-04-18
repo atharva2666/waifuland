@@ -52,6 +52,7 @@ export default function Home() {
 
   const [showBackToTop, setShowBackToTop] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
 
   const apiSource = apiSources[apiSourceKey];
 
@@ -73,6 +74,7 @@ export default function Home() {
       setActiveCategory("");
       setSfwCategories([]);
       setNsfwCategories([]);
+      setPage(1);
 
       const { sfw, nsfw } = await apiSource.getTags();
       setSfwCategories(sfw);
@@ -97,6 +99,7 @@ export default function Home() {
       if (!isNewSearch && isGenerating) return;
 
       startGenerating(async () => {
+        const currentPage = isNewSearch ? 1 : page + 1;
         if (isNewSearch) {
           setGalleryImages([]);
         }
@@ -105,10 +108,12 @@ export default function Home() {
           category: activeCategory,
           isNsfw: isNsfw && apiSource.hasNsfw,
           count: IMAGE_FETCH_COUNT,
+          page: currentPage,
         });
 
         if (result.success) {
           if (result.images.length > 0) {
+            setPage(currentPage);
             if (isNewSearch) {
               setGalleryImages(result.images);
             } else {
@@ -135,7 +140,7 @@ export default function Home() {
         }
       });
     },
-    [activeCategory, isNsfw, toast, apiSource, isGenerating]
+    [activeCategory, isNsfw, toast, apiSource, isGenerating, page]
   );
 
   useEffect(() => {

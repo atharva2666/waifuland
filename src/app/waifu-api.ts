@@ -9,6 +9,7 @@ export interface ImageApiSource {
     category: string;
     isNsfw: boolean;
     count: number;
+    page: number;
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
@@ -26,7 +27,7 @@ const danbooruApi: ImageApiSource = {
     });
   },
   async getImages(params) {
-    const { category, isNsfw, count } = params;
+    const { category, isNsfw, count, page } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
@@ -40,7 +41,7 @@ const danbooruApi: ImageApiSource = {
       tags.push('rating:general');
     }
     
-    const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}`;
+    const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
 
     try {
       const response = await fetch(url, { cache: 'no-store' });
@@ -93,7 +94,7 @@ const waifuPicsApi: ImageApiSource = {
     }
   },
   async getImages(params) {
-    const { category, isNsfw, count } = params;
+    const { category, isNsfw } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
@@ -224,27 +225,27 @@ const danbooruMangaApi: ImageApiSource = {
   name: 'Danbooru (Manga)',
   hasNsfw: true,
   async getTags() {
-    const sfwTags = [ 'action', 'adventure', 'comedy', 'drama', 'fantasy', 'magic', 'romance', 'sci-fi', 'slice_of_life', 'supernatural', 'doujinshi', '4-koma' ];
-    const nsfwTags = [ 'action', 'adventure', 'comedy', 'drama', 'fantasy', 'magic', 'romance', 'sci-fi', 'slice_of_life', 'supernatural', 'doujinshi', 'yuri', 'yaoi', 'gender_bender', 'ecchi' ];
+    const sfwTags = [ '4-koma', 'comic', 'doujinshi', 'parody', 'webcomic', 'silent_comic', 'official_art' ];
+    const nsfwTags = [ 'doujinshi', 'comic', 'yuri', 'yaoi', 'tentacles', 'guro', 'rape', 'bondage', 'ecchi', 'ahegao' ];
     return Promise.resolve({
         sfw: sfwTags.sort(),
         nsfw: nsfwTags.sort(),
     });
   },
   async getImages(params) {
-    const { category, isNsfw, count } = params;
+    const { category, isNsfw, count, page } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
 
-    const tags = [`manga ${category}`];
+    const tags = [category];
     if (isNsfw) {
       tags.push('rating:explicit');
     } else {
       tags.push('rating:general');
     }
     
-    const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&random=true`;
+    const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
 
     try {
       const response = await fetch(url, { cache: 'no-store' });
