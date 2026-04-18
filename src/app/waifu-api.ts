@@ -15,6 +15,30 @@ export interface ImageApiSource {
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
+// A curated list of popular "Of All Time" anime series with their MyAnimeList IDs.
+const curatedAnimeList: { id: number; name: string }[] = [
+    { id: 16498, name: 'Attack on Titan' },
+    { id: 5114, name: 'Fullmetal Alchemist: Brotherhood' },
+    { id: 9253, name: 'Steins;Gate' },
+    { id: 11061, name: 'Hunter x Hunter (2011)' },
+    { id: 40748, name: 'Jujutsu Kaisen' },
+    { id: 38000, name: 'Demon Slayer: Kimetsu no Yaiba' },
+    { id: 1535, name: 'Death Note' },
+    { id: 30276, name: 'One Punch Man' },
+    { id: 20, name: 'Naruto' },
+    { id: 1735, name: 'Naruto: Shippuden' },
+    { id: 21, name: 'One Piece' },
+    { id: 813, name: 'Dragon Ball Z' },
+    { id: 269, name: 'Bleach' },
+    { id: 31964, name: 'My Hero Academia' },
+    { id: 37510, name: 'Vinland Saga' },
+    { id: 1, name: 'Cowboy Bebop' },
+    { id: 1575, name: 'Code Geass' },
+    { id: 226, name: 'Elfen Lied' },
+    { id: 918, name: 'Gintama' },
+];
+
+
 let animeListCache: { id: number; name: string }[] = [];
 
 // --- Jikan Implementation ---
@@ -23,51 +47,11 @@ const jikanApi: ImageApiSource = {
   hasNsfw: false,
   sortingSupported: false,
   async getTags() {
-    if (animeListCache.length > 0) {
-        return { sfw: animeListCache.map(a => a.name), nsfw: [] };
+    // Use the curated list for a stable, high-quality selection of categories.
+    if (animeListCache.length === 0) {
+        animeListCache = curatedAnimeList;
     }
-
-    try {
-      const response = await fetch('https://api.jikan.moe/v4/top/anime');
-      if (!response.ok) throw new Error('Failed to fetch top anime from Jikan');
-      const data = await response.json();
-      
-      if (data && data.data) {
-        animeListCache = data.data.map((anime: any) => ({
-            id: anime.mal_id,
-            name: anime.title,
-        }));
-        return { sfw: animeListCache.map(a => a.name), nsfw: [] };
-      }
-      throw new Error('Invalid data format from Jikan API');
-    } catch (error) {
-      console.error('Jikan getTags error:', error);
-      // Fallback to a hardcoded list if the API fails
-      const fallbackAnime = [
-        { id: 16498, name: 'Attack on Titan' },
-        { id: 5114, name: 'Fullmetal Alchemist: Brotherhood' },
-        { id: 9253, name: 'Steins;Gate' },
-        { id: 28977, name: 'Gintama°' },
-        { id: 11061, name: 'Hunter x Hunter (2011)' },
-        { id: 38524, name: 'Vinland Saga' },
-        { id: 42938, name: 'Jujutsu Kaisen' },
-        { id: 30276, name: 'One Punch Man' },
-        { id: 9969, name: 'Gintama\'' },
-        { id: 1535, name: 'Death Note' },
-        { id: 21, name: 'One Piece' },
-        { id: 20, name: 'Naruto' },
-        { id: 226, name: 'Elfen Lied' },
-        { id: 269, name: 'Bleach' },
-        { id: 31964, name: 'Boku no Hero Academia' },
-        { id: 32281, name: 'Kimi no Na wa.' },
-        { id: 37510, name: 'Mob Psycho 100 II' },
-        { id: 40748, name: 'Jujutsu Kaisen (TV)'},
-        { id: 38000, name: 'Kimetsu no Yaiba' },
-        { id: 1, name: 'Cowboy Bebop'}
-      ];
-      animeListCache = fallbackAnime;
-      return { sfw: animeListCache.map(a => a.name), nsfw: [] };
-    }
+    return { sfw: animeListCache.map(a => a.name), nsfw: [] };
   },
   async getImages(params) {
     const { category } = params;
@@ -92,7 +76,9 @@ const jikanApi: ImageApiSource = {
         throw new Error(`API Error: ${response.statusText} (${response.status})`);
       }
       const data = await response.json();
-      const imageUrls = data.data?.map((pic: any) => pic.jpg.image_url) || [];
+      
+      // Prioritize large_image_url for higher quality, fall back to image_url.
+      const imageUrls = data.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url).filter(Boolean) || [];
 
       if (imageUrls.length === 0) {
         return { success: true, images: [], message: 'No images found for this anime.' };
@@ -135,13 +121,9 @@ const danbooruApi: ImageApiSource = {
     }
     
     if (sort) {
-      if (sort === 'score') {
-        // For 'Popularity', use order:rank which is more stable for all-time popular posts.
-        tags.push('order:rank');
-      } else {
-        // for 'id' -> 'Newest'
-        tags.push(`order:${sort}`);
-      }
+       // For 'Popularity', use order:rank which is more stable for all-time popular posts.
+       // For 'Newest', use order:id.
+       tags.push(`order:${sort === 'score' ? 'rank' : 'id'}`);
     }
     
     const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
