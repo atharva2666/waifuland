@@ -201,8 +201,12 @@ const waifuImApi: ImageApiSource = {
     url.searchParams.append('included_tags', category);
     url.searchParams.append('many', 'true');
     
-    // Explicitly set nsfw filter based on user's choice
-    url.searchParams.append('is_nsfw', isNsfw ? 'true' : 'false');
+    // The waifu.im API is particular. It is better to only specify the NSFW
+    // flag when browsing in secret mode, and let the tag define the content
+    // type otherwise. This avoids conflicts that can cause an error.
+    if (isNsfw) {
+      url.searchParams.append('is_nsfw', 'true');
+    }
 
     try {
       const response = await fetch(url.toString(), {
