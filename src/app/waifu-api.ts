@@ -155,55 +155,56 @@ const danbooruApi: ImageApiSource = {
   },
 };
 
-// --- waifu.pics Implementation ---
-const waifuPicsApi: ImageApiSource = {
-  name: 'waifu.pics',
+// --- waifu.im Implementation (replaces waifu.pics) ---
+const waifuImApi: ImageApiSource = {
+  name: 'waifu.im',
   hasNsfw: true,
   sortingSupported: false,
   async getTags() {
     try {
-      const response = await fetch('https://api.waifu.pics/endpoints');
-      if (!response.ok) throw new Error('Failed to fetch tags from waifu.pics');
+      const response = await fetch('https://api.waifu.im/tags');
+      if (!response.ok) throw new Error('Failed to fetch tags from waifu.im');
       const data = await response.json();
+      const sfwTags = [...new Set([...(data.sfw || []), ...(data.versatile || [])])].sort();
       return {
-        sfw: (data.sfw || []).sort(),
+        sfw: sfwTags,
         nsfw: (data.nsfw || []).sort(),
       };
     } catch (error) {
-      console.error('waifu.pics getTags error:', error);
+      console.error('waifu.im getTags error:', error);
+      // Fallback tags from docs
       return {
-        sfw: [ 'waifu', 'neko', 'shinobu', 'megumin', 'bully', 'cuddle', 'cry', 'hug', 'awoo', 'kiss', 'lick', 'pat', 'smug', 'bonk', 'yeet', 'blush', 'smile', 'wave', 'highfive', 'handhold', 'nom', 'bite', 'glomp', 'slap', 'kill', 'kick', 'happy', 'wink', 'poke', 'dance', 'cringe' ],
-        nsfw: [ 'waifu', 'neko', 'trap', 'blowjob' ]
+        sfw: ['waifu', 'maid', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies', 'uniform'].sort(),
+        nsfw: ['ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'ero'].sort(),
       };
     }
   },
   async getImages(params) {
-    const { category, isNsfw, count } = params;
+    const { category, isNsfw } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
-    const type = isNsfw ? 'nsfw' : 'sfw';
     
-    // waifu.pics' /many endpoint can fetch 30 at a time.
-    const url = `https://api.waifu.pics/many/${type}/${category}`;
+    const url = new URL('https://api.waifu.im/search');
+    url.searchParams.append('included_tags', category);
+    url.searchParams.append('many', 'true');
+    
+    // Explicitly set nsfw filter based on user's choice
+    url.searchParams.append('is_nsfw', isNsfw ? 'true' : 'false');
 
     try {
-      // This API uses a POST request for bulk fetching.
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ exclude: [] }), // Empty body for random images, API returns up to 30.
+      const response = await fetch(url.toString(), {
+        method: 'GET',
         cache: 'no-store',
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText} (${response.status})`);
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`API Error: ${errorData.message || response.statusText} (${response.status})`);
       }
       
       const data = await response.json();
-      const imageUrls = data.files || [];
+      const imageUrls = data.images?.map((img: any) => img.url) || [];
 
       if (imageUrls.length === 0) {
         return { success: true, images: [], message: 'No images found for this selection.' };
@@ -212,7 +213,7 @@ const waifuPicsApi: ImageApiSource = {
       return { success: true, images: [...new Set(imageUrls)] };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-      console.error("waifu.pics getImages error:", message);
+      console.error("waifu.im getImages error:", message);
       return { success: false, images: [], message };
     }
   },
@@ -308,7 +309,7 @@ const nekosBestApi: ImageApiSource = {
 
 export const apiSources: { [key: string]: ImageApiSource } = {
   'jikan': jikanApi,
-  'waifu.pics': waifuPicsApi,
+  'waifu.im': waifuImApi,
   'danbooru': danbooruApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
