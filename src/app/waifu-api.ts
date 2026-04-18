@@ -205,7 +205,7 @@ const waifuImApi: ImageApiSource = {
     }
   },
   async getImages(params) {
-    const { category } = params;
+    const { category, isNsfw } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
@@ -213,6 +213,14 @@ const waifuImApi: ImageApiSource = {
     const url = new URL('https://api.waifu.im/search');
     url.searchParams.append('included_tags', category);
     url.searchParams.append('many', 'true');
+
+    // The waifu.im API requires specifying `sfw=true` for SFW requests,
+    // and `is_nsfw=true` for NSFW requests. You cannot use both.
+    if (isNsfw) {
+      url.searchParams.append('is_nsfw', 'true');
+    } else {
+      url.searchParams.append('sfw', 'true');
+    }
 
     try {
       const response = await fetch(url.toString(), {
