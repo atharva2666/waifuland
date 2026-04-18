@@ -93,35 +93,35 @@ const waifuPicsApi: ImageApiSource = {
     }
   },
   async getImages(params) {
-    const { category, isNsfw, count } = params;
+    const { category, isNsfw } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
     const type = isNsfw ? 'nsfw' : 'sfw';
-    
-    // This API returns one image per call, so we make 'count' requests in parallel.
-    const imagePromises = Array.from({ length: count }).map(() => {
-        const url = `https://api.waifu.pics/${type}/${category}`;
-        return fetch(url, { cache: 'no-store' });
-    });
+    const url = `https://api.waifu.pics/many/${type}/${category}`;
 
     try {
-      const responses = await Promise.all(imagePromises);
-      
-      const imageUrls: string[] = [];
-      for (const response of responses) {
-        if (response.ok) {
-          const data = await response.json();
-          if (data.url) {
-            imageUrls.push(data.url);
-          }
-        }
+      // This API uses a POST request for bulk fetching.
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}), // Empty body for random images, API returns up to 30.
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText} (${response.status})`);
       }
+      
+      const data = await response.json();
+      const imageUrls = data.files || [];
 
       if (imageUrls.length === 0) {
         return { success: true, images: [], message: 'No images found for this selection.' };
       }
-      // a Set ensures we don't have duplicate images
+      
       return { success: true, images: [...new Set(imageUrls)] };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred.';

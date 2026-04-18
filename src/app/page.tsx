@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import {
   Download,
-  RefreshCw,
   Loader2,
   ImageIcon,
   ChevronUp,
@@ -52,6 +51,7 @@ export default function Home() {
   const { toast } = useToast();
 
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const apiSource = apiSources[apiSourceKey];
 
@@ -94,6 +94,7 @@ export default function Home() {
   const fetchAndSetGallery = useCallback(
     async (isNewSearch = false) => {
       if (!activeCategory) return;
+      if (!isNewSearch && isGenerating) return;
 
       startGenerating(async () => {
         if (isNewSearch) {
@@ -116,11 +117,13 @@ export default function Home() {
               ]);
             }
           } else {
-            if (isNewSearch) setGalleryImages([]);
-            toast({
-              title: "No bitches found",
-              description: result.message || "Try another category or toggle.",
-            });
+            if (isNewSearch) {
+              setGalleryImages([]);
+              toast({
+                title: "No images found",
+                description: result.message || "Try another category or toggle.",
+              });
+            }
           }
         } else {
           if (isNewSearch) setGalleryImages([]);
@@ -132,8 +135,32 @@ export default function Home() {
         }
       });
     },
-    [activeCategory, isNsfw, toast, apiSource]
+    [activeCategory, isNsfw, toast, apiSource, isGenerating]
   );
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          if (!isGenerating && galleryImages.length > 0) {
+            fetchAndSetGallery(false);
+          }
+        }
+      },
+      { rootMargin: "400px" }
+    );
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [isGenerating, galleryImages.length, fetchAndSetGallery]);
 
   useEffect(() => {
     const currentList =
@@ -314,20 +341,13 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-
-                <div className="flex justify-center mt-8">
-                  <Button
-                    onClick={() => fetchAndSetGallery(false)}
-                    disabled={isGenerating || !activeCategory}
-                    className="transition-transform active:scale-95 bg-primary/80 hover:bg-primary text-primary-foreground font-bold text-base py-6 px-8"
-                  >
-                    {isGenerating && galleryImages.length > 0 ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    Load More Images
-                  </Button>
+                <div
+                  ref={loadMoreRef}
+                  className="h-16 flex items-center justify-center"
+                >
+                  {isGenerating && galleryImages.length > 0 && (
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  )}
                 </div>
               </>
             ) : (
