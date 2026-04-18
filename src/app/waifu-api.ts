@@ -94,13 +94,13 @@ const waifuPicsApi: ImageApiSource = {
     }
   },
   async getImages(params) {
-    const { category, isNsfw } = params;
+    const { category, isNsfw, count } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
     const type = isNsfw ? 'nsfw' : 'sfw';
     
-    // waifu.pics' /many endpoint can only fetch 30 at a time.
+    // waifu.pics' /many endpoint can fetch 30 at a time.
     const url = `https://api.waifu.pics/many/${type}/${category}`;
 
     try {
@@ -110,7 +110,7 @@ const waifuPicsApi: ImageApiSource = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}), // Empty body for random images, API returns up to 30.
+        body: JSON.stringify({ exclude: [] }), // Empty body for random images, API returns up to 30.
         cache: 'no-store',
       });
 
@@ -220,69 +220,9 @@ const nekosBestApi: ImageApiSource = {
   },
 };
 
-// --- Danbooru Manga Implementation ---
-const danbooruMangaApi: ImageApiSource = {
-  name: 'Danbooru (Manga)',
-  hasNsfw: true,
-  async getTags() {
-    const sfwTags = [ '4-koma', 'comic', 'doujinshi', 'parody', 'webcomic', 'silent_comic', 'official_art' ];
-    const nsfwTags = [ 'doujinshi', 'comic', 'yuri', 'yaoi', 'tentacles', 'guro', 'rape', 'bondage', 'ecchi', 'ahegao' ];
-    return Promise.resolve({
-        sfw: sfwTags.sort(),
-        nsfw: nsfwTags.sort(),
-    });
-  },
-  async getImages(params) {
-    const { category, isNsfw, count, page } = params;
-    if (!category) {
-      return { success: false, images: [], message: 'No category selected.' };
-    }
-
-    const tags = [category];
-    if (isNsfw) {
-      tags.push('rating:explicit');
-    } else {
-      tags.push('rating:general');
-    }
-    
-    const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
-
-    try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (!response.ok) {
-        if (response.status === 422) {
-            return { success: true, images: [], message: 'No images found for this combination. Try another genre.' };
-        }
-        const errorText = await response.text().catch(() => 'Could not read error response.');
-        throw new Error(`API Error: ${response.statusText} (${response.status}) - ${errorText}`);
-      }
-      const data = await response.json();
-
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        return { success: true, images: [], message: 'No images found for this selection.' };
-      }
-      
-      const imageUrls = data
-        .filter((post: any) => post.file_url)
-        .map((post: any) => post.file_url);
-        
-      if (imageUrls.length === 0) {
-        return { success: true, images: [], message: 'No valid image URLs found in the response.' };
-      }
-
-      return { success: true, images: imageUrls };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-      console.error("Danbooru Manga getImages error:", message);
-      return { success: false, images: [], message };
-    }
-  },
-};
-
 export const apiSources: { [key: string]: ImageApiSource } = {
   'waifu.pics': waifuPicsApi,
   'danbooru': danbooruApi,
-  'danbooru_manga': danbooruMangaApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
 };
