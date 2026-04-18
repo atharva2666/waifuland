@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'i.waifu.im',
+        hostname: 'i.waifu.pics',
         port: '',
         pathname: '/**',
       },
