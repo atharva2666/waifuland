@@ -217,9 +217,69 @@ const nekosBestApi: ImageApiSource = {
   },
 };
 
+// --- Danbooru Manga Implementation ---
+const danbooruMangaApi: ImageApiSource = {
+  name: 'Danbooru (Manga)',
+  hasNsfw: true,
+  async getTags() {
+    const sfwTags = [ 'action', 'adventure', 'comedy', 'drama', 'fantasy', 'magic', 'romance', 'sci-fi', 'slice_of_life', 'supernatural', 'doujinshi', '4-koma' ];
+    const nsfwTags = [ 'action', 'adventure', 'comedy', 'drama', 'fantasy', 'magic', 'romance', 'sci-fi', 'slice_of_life', 'supernatural', 'doujinshi', 'yuri', 'yaoi', 'gender_bender', 'ecchi' ];
+    return Promise.resolve({
+        sfw: sfwTags.sort(),
+        nsfw: nsfwTags.sort(),
+    });
+  },
+  async getImages(params) {
+    const { category, isNsfw, count } = params;
+    if (!category) {
+      return { success: false, images: [], message: 'No category selected.' };
+    }
+
+    const tags = ['manga', category];
+    if (isNsfw) {
+      tags.push('rating:explicit');
+    } else {
+      tags.push('-rating:explicit');
+    }
+    
+    const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&random=true`;
+
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) {
+        if (response.status === 422) {
+            return { success: true, images: [], message: 'No images found for this combination. Try another genre.' };
+        }
+        const errorText = await response.text().catch(() => 'Could not read error response.');
+        throw new Error(`API Error: ${response.statusText} (${response.status}) - ${errorText}`);
+      }
+      const data = await response.json();
+
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return { success: true, images: [], message: 'No images found for this selection.' };
+      }
+      
+      const imageUrls = data
+        .filter((post: any) => post.file_url)
+        .map((post: any) => post.file_url);
+        
+      if (imageUrls.length === 0) {
+        return { success: true, images: [], message: 'No valid image URLs found in the response.' };
+      }
+
+      return { success: true, images: imageUrls };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("Danbooru Manga getImages error:", message);
+      return { success: false, images: [], message };
+    }
+  },
+};
+
 export const apiSources: { [key: string]: ImageApiSource } = {
   'waifu.pics': waifuPicsApi,
   'danbooru': danbooruApi,
+  'danbooru_manga': danbooruMangaApi,
   'nekos.life': nekosLifeApi,
   'nekos.best': nekosBestApi,
 };
