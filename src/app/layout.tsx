@@ -11,7 +11,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Olivia',
+  title: 'Yoursonal',
   description: 'Explore images and media from multiple APIs',
   viewport: {
     width: 'device-width',

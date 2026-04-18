@@ -275,7 +275,7 @@ export default function Home() {
         <div className="w-full max-w-7xl mx-auto flex flex-col">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-foreground drop-shadow-md">
-              Olivia
+              Yoursonal
             </h1>
             <p className="text-muted-foreground mt-1">
               made by Coderbee0_Ggs( Atharva Bhatnagar) and other provider
