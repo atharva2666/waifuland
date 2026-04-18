@@ -15,102 +15,6 @@ export interface ImageApiSource {
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
-// --- Anime (General) Implementation using Danbooru ---
-const animeApi: ImageApiSource = {
-  name: 'Anime',
-  hasNsfw: true,
-  sortingSupported: true,
-  async getTags() {
-    const sfwTags = [
-        '1boy',
-        '1girl',
-        'solo',
-        'genshin_impact',
-        'hololive',
-        'arknights',
-        'azur_lane',
-        'fate/grand_order',
-        'touhou',
-        'vocaloid',
-        'original',
-        'ikemen',
-        'male_focus',
-        'long_hair',
-        'short_hair',
-        'school_uniform',
-        'wallpaper',
-        'scenery',
-        'no_humans',
-        'sword',
-        'weapon',
-        'cat_ears',
-        'fox_girl',
-        'smile',
-        'blush'
-    ];
-    const nsfwTags = [ 'breasts', 'ass', 'pussy', 'thighhighs', 'sex', 'blowjob', 'genshin_impact', 'hololive', 'panties', 'cum', 'ahegao', 'bdsm', 'yuri', 'bondage', 'school_uniform', 'anus', 'areolae', 'artist_request', 'barefoot', 'bell', 'bikini', 'bloomers', 'bodysuit', 'bra', 'cameltoe', 'censored', 'cleavage', 'close-up', 'cum_in_pussy', 'cum_on_breasts', 'cunnilingus', 'demon_girl', 'doggy_style', 'elf', 'erect_nipples', 'exposed_anus', 'fingering', 'flat_chest', 'fox_girl', 'garter_belt', 'guro', 'handjob', 'horns', 'incest', 'inverted_nipples', 'leash', 'leotard', 'lingerie', 'loli', 'maid', 'masturbation', 'missionary_position', 'monochrome', 'naked', 'navel', 'necklace', 'nipples', 'nopan', 'nude', 'on_back', 'on_stomach', 'orgy', 'paizuri', 'panty_pull', 'pantyhose', 'penis', 'pov', 'pubic_hair', 'rape', 'see-through', 'seifuku', 'sex_toy', 'shirt_lift', 'sidelocks', 'spread_legs', 'squirt', 'stomach', 'straight_on', 'striped_panties', 'succubus', 'swimsuit', 'tail', 'tentacles', 'threesome', 'tongue', 'tongue_out', 'tribadism', 'undressing', 'uniform', 'vaginal', 'very_long_hair', 'vomit', 'white_panties', 'yaoi'];
-    return Promise.resolve({
-        sfw: sfwTags.sort(),
-        nsfw: nsfwTags.sort(),
-    });
-  },
-  async getImages(params) {
-    // This implementation is the same as Danbooru's
-    const { category, isNsfw, count, page, sort } = params;
-    if (!category) {
-      return { success: false, images: [], message: 'No category selected.' };
-    }
-
-    const tags = [category];
-    if (isNsfw) {
-      tags.push('rating:explicit');
-      tags.push('ratio:>=1.2');
-    } else {
-      tags.push('rating:general');
-    }
-    
-    if (sort) {
-      if (sort === 'score') {
-        // For 'Popularity', use order:rank which is more stable for all-time popular posts.
-        tags.push('order:rank');
-      } else {
-        // for 'id' -> 'Newest'
-        tags.push(`order:${sort}`);
-      }
-    }
-    
-    const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
-
-    try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Could not read error response.');
-        throw new Error(`API Error: ${response.statusText} (${response.status}) - ${errorText}`);
-      }
-      const data = await response.json();
-
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        return { success: true, images: [], message: 'No images found for this selection.' };
-      }
-      
-      const imageUrls = data
-        .filter((post: any) => post.file_url)
-        .map((post: any) => post.file_url);
-        
-      if (imageUrls.length === 0) {
-        return { success: true, images: [], message: 'No valid image URLs found in the response.' };
-      }
-
-      return { success: true, images: imageUrls };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-      console.error("Danbooru (Anime) getImages error:", message);
-      return { success: false, images: [], message };
-    }
-  },
-};
-
-
 // --- Danbooru Implementation ---
 const danbooruApi: ImageApiSource = {
   name: 'Danbooru',
@@ -134,8 +38,6 @@ const danbooruApi: ImageApiSource = {
     const tags = [category];
     if (isNsfw) {
       tags.push('rating:explicit');
-      // Filter for horizontal/landscape images
-      tags.push('ratio:>=1.2');
     } else {
       tags.push('rating:general');
     }
@@ -333,7 +235,6 @@ const nekosBestApi: ImageApiSource = {
 };
 
 export const apiSources: { [key: string]: ImageApiSource } = {
-  'anime': animeApi,
   'waifu.pics': waifuPicsApi,
   'danbooru': danbooruApi,
   'nekos.life': nekosLifeApi,
