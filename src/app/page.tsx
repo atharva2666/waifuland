@@ -38,6 +38,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ImageViewer } from "@/components/image-viewer";
+import { ThemeCustomizer } from "@/components/theme-customizer";
 
 const IMAGE_FETCH_COUNT = 30;
 
@@ -64,6 +65,7 @@ export default function Home() {
   const [viewingLikes, setViewingLikes] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isThemeEditorOpen, setIsThemeEditorOpen] = useState(false);
   
   const apiSource = apiSources[apiSourceKey];
   
@@ -229,13 +231,17 @@ export default function Home() {
   };
 
   const handlePasswordSubmit = () => {
-    if (password === "nsfw") {
+    if (password.toLowerCase() === "nsfw") {
       setIsNsfw(true);
-      setIsPasswordDialogOpen(false);
-      setPassword("");
       toast({
         title: "Access Granted",
-        description: "Let the games begin.",
+        description: "Secret mode unlocked.",
+      });
+    } else if (password.toLowerCase() === 'theme') {
+      setIsThemeEditorOpen(true);
+      toast({
+        title: "Theme Editor Unlocked",
+        description: "Time to get creative.",
       });
     } else {
       toast({
@@ -243,8 +249,9 @@ export default function Home() {
         title: "Incorrect Password",
         description: "Wrong key, try again.",
       });
-      setPassword("");
     }
+    setIsPasswordDialogOpen(false);
+    setPassword("");
   };
   
   const handleLikeToggle = (imgUrl: string) => {
@@ -528,6 +535,8 @@ export default function Home() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <ThemeCustomizer isOpen={isThemeEditorOpen} onOpenChange={setIsThemeEditorOpen} />
 
         {showBackToTop && (
           <Button
