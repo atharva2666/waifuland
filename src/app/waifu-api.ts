@@ -163,16 +163,23 @@ const waifuImApi: ImageApiSource = {
   async getTags() {
     try {
       const response = await fetch('https://api.waifu.im/tags');
-      if (!response.ok) throw new Error('Failed to fetch tags from waifu.im');
+      if (!response.ok) throw new Error('Failed to fetch tags from waifu.im, using fallback.');
       const data = await response.json();
+      
       const sfwTags = [...new Set([...(data.sfw || []), ...(data.versatile || [])])].sort();
+      const nsfwTags = (data.nsfw || []).sort();
+
+      if (sfwTags.length === 0 && nsfwTags.length === 0) {
+          throw new Error("API returned empty tags, using fallback.");
+      }
+
       return {
         sfw: sfwTags,
-        nsfw: (data.nsfw || []).sort(),
+        nsfw: nsfwTags,
       };
     } catch (error) {
       console.error('waifu.im getTags error:', error);
-      // Fallback tags from docs
+      // Fallback tags in case the API call fails or returns empty data.
       return {
         sfw: ['waifu', 'maid', 'marin-kitagawa', 'mori-calliope', 'raiden-shogun', 'oppai', 'selfies', 'uniform'].sort(),
         nsfw: ['ass', 'hentai', 'milf', 'oral', 'paizuri', 'ecchi', 'ero'].sort(),
