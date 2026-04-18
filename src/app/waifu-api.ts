@@ -71,6 +71,9 @@ const animeApi: ImageApiSource = {
     
     if (sort) {
       tags.push(`order:${sort}`);
+      if (sort === 'score') {
+        tags.push('score:>=50');
+      }
     }
     
     const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
@@ -136,6 +139,9 @@ const danbooruApi: ImageApiSource = {
     
     if (sort) {
       tags.push(`order:${sort}`);
+      if (sort === 'score') {
+        tags.push('score:>=50');
+      }
     }
     
     const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
