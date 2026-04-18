@@ -6,6 +6,8 @@ import {
   Loader2,
   ImageIcon,
   ChevronUp,
+  Heart,
+  Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -35,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ImageViewer } from "@/components/image-viewer";
 
 const IMAGE_FETCH_COUNT = 30;
 
@@ -55,7 +58,29 @@ export default function Home() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
 
+  // New states for the requested features
+  const [sortOrder, setSortOrder] = useState("score");
+  const [likedImages, setLikedImages] = useState<string[]>([]);
+  const [viewingLikes, setViewingLikes] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  
   const apiSource = apiSources[apiSourceKey];
+  
+  // Restore non-sensitive settings from localStorage
+  useEffect(() => {
+    const storedApiSource = localStorage.getItem("apiSourceKey");
+    if (storedApiSource && apiSources[storedApiSource]) {
+      setApiSourceKey(storedApiSource);
+    }
+    // Note: isNsfw is intentionally not stored/restored
+  }, []);
+  
+  // Persist apiSourceKey on change
+  useEffect(() => {
+    localStorage.setItem("apiSourceKey", apiSourceKey);
+  }, [apiSourceKey]);
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -96,7 +121,7 @@ export default function Home() {
 
   const fetchAndSetGallery = useCallback(
     async (isNewSearch = false) => {
-      if (!activeCategory) return;
+      if (viewingLikes || !activeCategory) return;
       if (!isNewSearch && isGenerating) return;
 
       startGenerating(async () => {
@@ -110,6 +135,7 @@ export default function Home() {
           isNsfw: isNsfw && apiSource.hasNsfw,
           count: IMAGE_FETCH_COUNT,
           page: currentPage,
+          sort: apiSource.sortingSupported ? sortOrder : undefined,
         });
 
         if (result.success) {
@@ -141,14 +167,14 @@ export default function Home() {
         }
       });
     },
-    [activeCategory, isNsfw, toast, apiSource, isGenerating, page]
+    [activeCategory, isNsfw, toast, apiSource, isGenerating, page, sortOrder, viewingLikes]
   );
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          if (!isGenerating && galleryImages.length > 0) {
+          if (!isGenerating && galleryImages.length > 0 && !viewingLikes) {
             fetchAndSetGallery(false);
           }
         }
@@ -166,7 +192,7 @@ export default function Home() {
         observer.unobserve(currentRef);
       }
     };
-  }, [isGenerating, galleryImages.length, fetchAndSetGallery]);
+  }, [isGenerating, galleryImages.length, fetchAndSetGallery, viewingLikes]);
 
   useEffect(() => {
     const currentList =
@@ -185,7 +211,17 @@ export default function Home() {
       fetchAndSetGallery(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory]);
+  }, [activeCategory, sortOrder]);
+  
+  useEffect(() => {
+    if (viewingLikes) {
+        setGalleryImages(likedImages);
+    } else if (activeCategory) {
+        fetchAndSetGallery(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingLikes]);
+
 
   const handleImageDownload = (url: string | null) => {
     if (!url) return;
@@ -210,9 +246,28 @@ export default function Home() {
       setPassword("");
     }
   };
+  
+  const handleLikeToggle = (imgUrl: string) => {
+    setLikedImages((prev) =>
+      prev.includes(imgUrl)
+        ? prev.filter((url) => url !== imgUrl)
+        : [...prev, imgUrl]
+    );
+  };
+  
+  const openImageViewer = (index: number) => {
+    setActiveImageIndex(index);
+    setIsViewerOpen(true);
+  };
 
+  const closeImageViewer = () => {
+    setIsViewerOpen(false);
+  };
+  
   const currentCategories =
     isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
+    
+  const imagesToDisplay = viewingLikes ? likedImages : galleryImages;
 
   return (
     <div className="min-h-screen w-full font-body">
@@ -229,29 +284,48 @@ export default function Home() {
 
           <div className="py-4 mb-8">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg border bg-card p-4">
-              <div className="flex items-center gap-4 self-start sm:self-center">
-                <Label
-                  htmlFor="api-source"
-                  className="text-base font-medium text-foreground whitespace-nowrap"
-                >
-                  API Source
-                </Label>
-                <Select value={apiSourceKey} onValueChange={setApiSourceKey}>
-                  <SelectTrigger className="w-[180px] bg-transparent border-input hover:bg-accent hover:text-accent-foreground">
-                    <SelectValue placeholder="Select an API" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(apiSources).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {apiSources[key].name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-4 self-start sm:self-center">
+              <div className="flex items-center gap-4 self-start sm:self-center flex-wrap">
+                <div className="flex items-center gap-4">
+                  <Label
+                    htmlFor="api-source"
+                    className="text-base font-medium text-foreground whitespace-nowrap"
+                  >
+                    API Source
+                  </Label>
+                  <Select value={apiSourceKey} onValueChange={(val) => { setApiSourceKey(val); setViewingLikes(false);}}>
+                    <SelectTrigger className="w-[180px] bg-transparent border-input hover:bg-accent hover:text-accent-foreground">
+                      <SelectValue placeholder="Select an API" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(apiSources).map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {apiSources[key].name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                 {apiSource.sortingSupported && (
+                  <div className="flex items-center gap-4">
+                     <Label
+                      htmlFor="sort-order"
+                      className="text-base font-medium text-foreground whitespace-nowrap"
+                    >
+                      Sort By
+                    </Label>
+                    <Select value={sortOrder} onValueChange={setSortOrder} disabled={viewingLikes}>
+                       <SelectTrigger className="w-[180px] bg-transparent border-input hover:bg-accent hover:text-accent-foreground">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="score">Popularity</SelectItem>
+                        <SelectItem value="id">Newest</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {apiSource.hasNsfw && (
-                  <div className="flex items-center gap-4 self-start sm:self-center">
+                  <div className="flex items-center gap-4">
                     <Label
                       htmlFor="nsfw-toggle"
                       className="text-base font-medium text-foreground whitespace-nowrap"
@@ -280,21 +354,30 @@ export default function Home() {
               <div className="flex-1 w-full sm:w-auto">
                 <ScrollArea className="w-full">
                   <div className="flex items-center gap-2 pb-2">
+                     <Button
+                        key="likes"
+                        variant={viewingLikes ? "secondary" : "outline"}
+                        onClick={() => setViewingLikes(!viewingLikes)}
+                        className="justify-start shrink-0 bg-transparent"
+                      >
+                        <Heart className={`mr-2 ${likedImages.length > 0 ? 'text-red-500 fill-current' : ''}`} />
+                        My Likes ({likedImages.length})
+                      </Button>
                     {currentCategories.length > 0 ? (
                       currentCategories.map((cat) => (
                         <Button
                           key={cat}
                           variant={
-                            activeCategory === cat ? "secondary" : "outline"
+                            activeCategory === cat && !viewingLikes ? "secondary" : "outline"
                           }
-                          onClick={() => setActiveCategory(cat)}
+                          onClick={() => { setActiveCategory(cat); setViewingLikes(false); }}
                           className="justify-start capitalize shrink-0 bg-transparent"
                         >
                           {cat.replace(/_/g, " ")}
                         </Button>
                       ))
                     ) : (
-                      Array.from({ length: 10 }).map((_, i) => (
+                       !viewingLikes && Array.from({ length: 10 }).map((_, i) => (
                         <Skeleton
                           key={i}
                           className="h-10 w-24 rounded-md bg-muted"
@@ -309,7 +392,7 @@ export default function Home() {
           </div>
 
           <div className="flex-grow">
-            {isGenerating && galleryImages.length === 0 ? (
+            {isGenerating && imagesToDisplay.length === 0 && !viewingLikes ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="aspect-[9/16] rounded-lg">
@@ -317,16 +400,15 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : galleryImages.length > 0 ? (
+            ) : imagesToDisplay.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {galleryImages.map((imgUrl, index) => (
+                  {imagesToDisplay.map((imgUrl, index) => (
                     <div
                       key={`${imgUrl}-${index}`}
-                      className="relative rounded-lg overflow-hidden group border bg-card shadow-lg aspect-[9/16] cursor-pointer"
-                      onClick={() => window.open(imgUrl, "_blank")}
+                      className="relative rounded-lg overflow-hidden group border bg-card shadow-lg aspect-[9/16]"
                     >
-                      <div className="w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105">
+                      <div className="w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105 cursor-pointer" onClick={() => openImageViewer(index)}>
                         <MediaPlayer
                           src={imgUrl}
                           alt={`Gallery image ${index + 1}`}
@@ -348,6 +430,15 @@ export default function Home() {
                           <span className="sr-only">Download</span>
                         </Button>
                       </div>
+                      <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => { e.stopPropagation(); handleLikeToggle(imgUrl); }}
+                          className="absolute top-2 right-2 text-white bg-black/20 hover:bg-black/50 hover:text-white rounded-full h-10 w-10"
+                      >
+                          <Heart className={`transition-colors ${likedImages.includes(imgUrl) ? 'text-red-500 fill-current' : 'text-white'}`} />
+                          <span className="sr-only">Like</span>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -355,7 +446,7 @@ export default function Home() {
                   ref={loadMoreRef}
                   className="h-16 flex items-center justify-center"
                 >
-                  {isGenerating && galleryImages.length > 0 && (
+                  {isGenerating && imagesToDisplay.length > 0 && !viewingLikes && (
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   )}
                 </div>
@@ -364,10 +455,10 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-card rounded-lg w-full">
                 <ImageIcon className="w-16 h-16 mb-4 text-muted-foreground/30" />
                 <p className="text-center text-foreground/70">
-                  It's empty in here...
+                  {viewingLikes ? "You haven't liked any images yet." : "It's empty in here..."}
                 </p>
                 <p className="text-center text-muted-foreground text-sm">
-                  Select a category to get the party started.
+                  {viewingLikes ? "Click the heart on an image to save it here." : "Select a category to get the party started."}
                 </p>
               </div>
             )}
@@ -420,6 +511,16 @@ export default function Home() {
             <span className="sr-only">Back to top</span>
           </Button>
         )}
+        
+        <ImageViewer 
+          images={imagesToDisplay}
+          activeIndex={activeImageIndex}
+          isOpen={isViewerOpen}
+          onClose={closeImageViewer}
+          onNext={() => setActiveImageIndex((i) => (i + 1) % imagesToDisplay.length)}
+          onPrev={() => setActiveImageIndex((i) => (i - 1 + imagesToDisplay.length) % imagesToDisplay.length)}
+        />
+
       </main>
     </div>
   );

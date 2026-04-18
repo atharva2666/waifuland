@@ -4,12 +4,14 @@
 export interface ImageApiSource {
   name: string;
   hasNsfw: boolean;
+  sortingSupported: boolean;
   getTags: () => Promise<{ sfw: string[]; nsfw: string[] }>;
   getImages: (params: {
     category: string;
     isNsfw: boolean;
     count: number;
     page: number;
+    sort?: string;
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
@@ -17,6 +19,7 @@ export interface ImageApiSource {
 const danbooruApi: ImageApiSource = {
   name: 'Danbooru',
   hasNsfw: true,
+  sortingSupported: true,
   async getTags() {
     // Danbooru has millions of tags. We provide a curated list of popular SFW and NSFW tags as categories.
     const sfwTags = [ '1girl', 'solo', 'long_hair', 'smile', 'genshin_impact', 'hololive', 'touhou', 'vocaloid', 'cat_ears', 'school_uniform', 'blue_hair', 'azur_lane', 'arknights', 'fate/grand_order', 'original', 'bangs', 'blonde_hair', 'blush', 'breasts', 'brown_hair', 'hat', 'open_mouth', 'short_hair', 'skirt', 'white_hair', 'another_anime_game', 'black_hair', 'dress', 'eyebrows_visible_through_hair', 'food', 'hair_ornament', 'red_eyes', 'shirt', 'simple_background', 'sword', 'twintails', 'weapon', 'animal_ears', 'blue_eyes', 'braid', 'final_fantasy', 'gloves', 'green_hair', 'gun', 'hair_between_eyes', 'hatsune_miku', 'jewelry', 'long_sleeves', 'multiple_girls', 'pink_hair', 'purple_eyes', 'purple_hair', 'ribbon', 'thighhighs', 'wings', 'yellow_eyes'];
@@ -27,7 +30,7 @@ const danbooruApi: ImageApiSource = {
     });
   },
   async getImages(params) {
-    const { category, isNsfw, count, page } = params;
+    const { category, isNsfw, count, page, sort } = params;
     if (!category) {
       return { success: false, images: [], message: 'No category selected.' };
     }
@@ -39,6 +42,10 @@ const danbooruApi: ImageApiSource = {
       tags.push('ratio:>=1.2');
     } else {
       tags.push('rating:general');
+    }
+    
+    if (sort) {
+      tags.push(`order:${sort}`);
     }
     
     const url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(tags.join(' '))}&limit=${count}&page=${page}`;
@@ -76,6 +83,7 @@ const danbooruApi: ImageApiSource = {
 const waifuPicsApi: ImageApiSource = {
   name: 'waifu.pics',
   hasNsfw: true,
+  sortingSupported: false,
   async getTags() {
     try {
       const response = await fetch('https://api.waifu.pics/endpoints');
@@ -138,6 +146,7 @@ const waifuPicsApi: ImageApiSource = {
 const nekosLifeApi: ImageApiSource = {
   name: 'nekos.life',
   hasNsfw: false,
+  sortingSupported: false,
   async getTags() {
     const sfw = ['neko', 'waifu', 'tickle', 'slap', 'poke', 'pat', 'lizard', 'kiss', 'hug', 'fox_girl', 'feed', 'cuddle', 'kemonomimi', 'holo', 'smug', 'baka', 'woof', 'wallpaper', 'goose', 'gecg', 'avatar'];
     return Promise.resolve({ sfw: sfw.sort(), nsfw: [] });
@@ -181,7 +190,8 @@ const nekosLifeApi: ImageApiSource = {
 // --- nekos.best Implementation ---
 const nekosBestApi: ImageApiSource = {
   name: 'nekos.best',
-  hasNsfw: false, // nekos.best doesn't have an NSFW flag, categories are distinct
+  hasNsfw: false,
+  sortingSupported: false,
   async getTags() {
     try {
       const response = await fetch('https://nekos.best/api/v2/endpoints');
