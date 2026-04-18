@@ -39,8 +39,6 @@ const curatedAnimeList: { id: number; name: string }[] = [
 ];
 
 
-let animeListCache: { id: number; name: string }[] = [];
-
 // --- Jikan Implementation ---
 const jikanApi: ImageApiSource = {
   name: 'Jikan',
@@ -48,22 +46,22 @@ const jikanApi: ImageApiSource = {
   sortingSupported: false,
   async getTags() {
     // Use the curated list for a stable, high-quality selection of categories.
-    if (animeListCache.length === 0) {
-        animeListCache = curatedAnimeList;
-    }
-    return { sfw: animeListCache.map(a => a.name), nsfw: [] };
+    return Promise.resolve({ sfw: curatedAnimeList.map(a => a.name), nsfw: [] });
   },
   async getImages(params) {
-    const { category } = params;
+    const { category, page } = params;
     if (!category) {
       return { success: false, images: [], message: 'No anime selected.' };
     }
 
-    if (animeListCache.length === 0) {
-        await this.getTags(); // Ensure tags are loaded if not already
+    // Jikan's /pictures endpoint isn't paginated. It returns all images at once.
+    // To prevent infinite scroll from making repeated calls for the same data,
+    // we will only return data for the first page request.
+    if (page > 1) {
+      return { success: true, images: [], message: 'End of results.' };
     }
 
-    const anime = animeListCache.find(a => a.name === category);
+    const anime = curatedAnimeList.find(a => a.name === category);
     if (!anime) {
       return { success: false, images: [], message: `Anime "${category}" not found.` };
     }
