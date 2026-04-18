@@ -70,9 +70,12 @@ const animeApi: ImageApiSource = {
     }
     
     if (sort) {
-      tags.push(`order:${sort}`);
       if (sort === 'score') {
-        tags.push('score:>=50');
+        // Use 'rank' for popularity as 'score' can time out on large tags.
+        tags.push('order:rank');
+      } else {
+        // for 'id' -> 'Newest'
+        tags.push(`order:${sort}`);
       }
     }
     
@@ -138,9 +141,12 @@ const danbooruApi: ImageApiSource = {
     }
     
     if (sort) {
-      tags.push(`order:${sort}`);
       if (sort === 'score') {
-        tags.push('score:>=50');
+        // Use 'rank' for popularity as 'score' can time out on large tags.
+        tags.push('order:rank');
+      } else {
+        // for 'id' -> 'Newest'
+        tags.push(`order:${sort}`);
       }
     }
     
