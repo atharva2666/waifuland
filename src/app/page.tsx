@@ -54,33 +54,8 @@ export default function Home() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
-  const [isMounted, setIsMounted] = useState(false);
 
   const apiSource = apiSources[apiSourceKey];
-
-  useEffect(() => {
-    const storedApiSourceKey = localStorage.getItem('apiSourceKey');
-    if (storedApiSourceKey && apiSources[storedApiSourceKey]) {
-      setApiSourceKey(storedApiSourceKey);
-    }
-    const storedIsNsfw = localStorage.getItem('isNsfw') === 'true';
-    if (storedIsNsfw) {
-      setIsNsfw(true);
-    }
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('apiSourceKey', apiSourceKey);
-    }
-  }, [apiSourceKey, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('isNsfw', String(isNsfw));
-    }
-  }, [isNsfw, isMounted]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -96,7 +71,6 @@ export default function Home() {
 
   useEffect(() => {
     async function getTags() {
-      if (!isMounted) return;
       setGalleryImages([]);
       setActiveCategory("");
       setSfwCategories([]);
@@ -118,7 +92,7 @@ export default function Home() {
     }
     getTags();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiSourceKey, isMounted]);
+  }, [apiSourceKey]);
 
   const fetchAndSetGallery = useCallback(
     async (isNewSearch = false) => {
@@ -195,7 +169,6 @@ export default function Home() {
   }, [isGenerating, galleryImages.length, fetchAndSetGallery]);
 
   useEffect(() => {
-    if (!isMounted) return;
     const currentList =
       isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
     if (currentList.length > 0 && !currentList.includes(activeCategory)) {
@@ -204,7 +177,7 @@ export default function Home() {
       fetchAndSetGallery(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNsfw, isMounted]);
+  }, [isNsfw]);
 
   useEffect(() => {
     if (activeCategory) {
