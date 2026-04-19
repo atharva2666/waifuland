@@ -64,23 +64,34 @@ const jikanApi: ImageApiSource = {
             charactersPromise
         ]);
 
-        // 3. Fetch pictures for each character sequentially to respect rate limits
+        // 3. Fetch pictures for characters in parallel batches to respect rate limits
         if (characters && characters.length > 0) {
-            for (const char of characters) {
-                const characterId = char.character.mal_id;
-                if (characterId) {
-                    await sleep(350); // Respect rate limit (3 req/sec)
-                    try {
-                        const charPicturesUrl = `https://api.jikan.moe/v4/characters/${characterId}/pictures`;
-                        const charPicturesResponse = await fetch(charPicturesUrl, { cache: 'no-store' });
-                        if (charPicturesResponse.ok) {
-                            const charPicturesData = await charPicturesResponse.json();
+            const characterChunks = [];
+            const chunkSize = 3; // Jikan API rate limit is ~3 req/sec
+
+            for (let i = 0; i < characters.length; i += chunkSize) {
+                characterChunks.push(characters.slice(i, i + chunkSize));
+            }
+
+            for (const chunk of characterChunks) {
+                const chunkPromises = chunk.map(char => {
+                    const characterId = char.character.mal_id;
+                    if (!characterId) return Promise.resolve();
+                    
+                    const charPicturesUrl = `https://api.jikan.moe/v4/characters/${characterId}/pictures`;
+                    return fetch(charPicturesUrl, { cache: 'no-store' })
+                        .then(res => res.ok ? res.json() : Promise.resolve({ data: [] }))
+                        .then(charPicturesData => {
                             addUrls(charPicturesData.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url) || []);
-                        }
-                    } catch (e) {
-                        // Log error for individual character and continue
-                        console.error(`Jikan: Failed to fetch pictures for character ${characterId}`, e);
-                    }
+                        })
+                        .catch(e => console.error(`Jikan: Failed to fetch pictures for character ${characterId}`, e));
+                });
+
+                await Promise.all(chunkPromises);
+                
+                // Don't sleep after the last chunk
+                if (characterChunks.indexOf(chunk) < characterChunks.length - 1) {
+                    await sleep(1100); // Wait a bit over a second before the next batch
                 }
             }
         }
