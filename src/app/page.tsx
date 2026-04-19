@@ -68,6 +68,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
   const [isGenerating, startGenerating] = useTransition();
+  const [isStreaming, startStreaming] = useTransition();
   const { toast } = useToast();
 
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -95,6 +96,8 @@ export default function Home() {
     if (storedApiSource && apiSources[storedApiSource]) {
       setApiSourceKey(storedApiSource);
     }
+    
+    document.documentElement.classList.remove('dark');
   }, []);
   
   useEffect(() => {
@@ -185,7 +188,9 @@ export default function Home() {
         
         const onProgressCallback = (newImages: string[]) => {
           if (newImages.length > 0) {
-            setGalleryImages((prev) => [...new Set([...prev, ...newImages])]);
+            startStreaming(() => {
+              setGalleryImages((prev) => [...new Set([...prev, ...newImages])]);
+            });
           }
         };
 
@@ -569,7 +574,7 @@ export default function Home() {
           </div>
 
           <div className="flex-grow">
-            {isGenerating && imagesToDisplay.length === 0 && !viewingLikes ? (
+            {(isGenerating && imagesToDisplay.length === 0 && !viewingLikes) ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="aspect-[9/16] rounded-lg">
@@ -623,7 +628,7 @@ export default function Home() {
                   ref={loadMoreRef}
                   className="h-16 flex items-center justify-center"
                 >
-                  {isGenerating && imagesToDisplay.length > 0 && !viewingLikes && (
+                  {(isGenerating || isStreaming) && imagesToDisplay.length > 0 && !viewingLikes && (
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   )}
                 </div>
