@@ -15,67 +15,42 @@ export interface ImageApiSource {
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
-// A curated list of popular "Of All Time" anime series with their MyAnimeList IDs.
-const curatedAnimeList: { id: number; name: string }[] = [
-    { id: 16498, name: 'Attack on Titan' },
-    { id: 5114, name: 'Fullmetal Alchemist: Brotherhood' },
-    { id: 9253, name: 'Steins;Gate' },
-    { id: 11061, name: 'Hunter x Hunter (2011)' },
-    { id: 40748, name: 'Jujutsu Kaisen' },
-    { id: 38000, name: 'Demon Slayer: Kimetsu no Yaiba' },
-    { id: 1535, name: 'Death Note' },
-    { id: 30276, name: 'One Punch Man' },
-    { id: 20, name: 'Naruto' },
-    { id: 1735, name: 'Naruto: Shippuden' },
-    { id: 21, name: 'One Piece' },
-    { id: 813, name: 'Dragon Ball Z' },
-    { id: 269, name: 'Bleach' },
-    { id: 31964, name: 'My Hero Academia' },
-    { id: 37510, name: 'Vinland Saga' },
-    { id: 1, name: 'Cowboy Bebop' },
-    { id: 1575, name: 'Code Geass' },
-    { id: 226, name: 'Elfen Lied' },
-    { id: 918, name: 'Gintama' },
-];
-
-
 // --- Jikan Implementation ---
 const jikanApi: ImageApiSource = {
   name: 'Jikan',
   hasNsfw: false,
-  sortingSupported: false,
+  sortingSupported: false, // Jikan pictures endpoint doesn't support sorting
   async getTags() {
-    // Use the curated list for a stable, high-quality selection of categories.
-    return Promise.resolve({ sfw: curatedAnimeList.map(a => a.name), nsfw: [] });
+    // This is now handled by the search bar, so we return empty arrays.
+    return Promise.resolve({ sfw: [], nsfw: [] });
   },
   async getImages(params) {
-    const { category, page } = params;
-    if (!category) {
-      return { success: false, images: [], message: 'No anime selected.' };
+    // The 'category' param now holds the anime ID from the search selection.
+    const { category: animeId, page } = params;
+    if (!animeId) {
+      return { success: true, images: [] }; // Don't show an error if no anime is selected yet
     }
 
-    // Jikan's /pictures endpoint isn't paginated. It returns all images at once.
-    // To prevent infinite scroll from making repeated calls for the same data,
-    // we will only return data for the first page request.
+    // The /pictures endpoint is not paginated. To prevent infinite scroll
+    // from making repeated calls, only fetch on the first "page".
     if (page > 1) {
       return { success: true, images: [], message: 'End of results.' };
     }
 
-    const anime = curatedAnimeList.find(a => a.name === category);
-    if (!anime) {
-      return { success: false, images: [], message: `Anime "${category}" not found.` };
-    }
-
-    const url = `https://api.jikan.moe/v4/anime/${anime.id}/pictures`;
+    const url = `https://api.jikan.moe/v4/anime/${animeId}/pictures`;
 
     try {
       const response = await fetch(url, { cache: 'no-store' });
       if (!response.ok) {
+        // Jikan might 404 if an anime ID is invalid or has no pictures.
+        // Treat this as "no images found" instead of a hard error.
+        if (response.status === 404) {
+            return { success: true, images: [], message: 'No images found for this anime.' };
+        }
         throw new Error(`API Error: ${response.statusText} (${response.status})`);
       }
       const data = await response.json();
       
-      // Prioritize large_image_url for higher quality, fall back to image_url.
       const imageUrls = data.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url).filter(Boolean) || [];
 
       if (imageUrls.length === 0) {
@@ -90,6 +65,7 @@ const jikanApi: ImageApiSource = {
     }
   },
 };
+
 
 // --- Danbooru Implementation ---
 const danbooruApi: ImageApiSource = {

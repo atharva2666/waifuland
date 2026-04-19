@@ -8,6 +8,7 @@ import {
   ChevronUp,
   Heart,
   Image,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -39,6 +40,12 @@ import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ImageViewer } from "@/components/image-viewer";
 import { ThemeCustomizer } from "@/components/theme-customizer";
+import { searchAnime } from "./actions";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const IMAGE_FETCH_COUNT = 30;
 
@@ -59,26 +66,29 @@ export default function Home() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
 
-  // New states for the requested features
+  // States for sorting, likes, and viewer
   const [sortOrder, setSortOrder] = useState("score");
   const [likedImages, setLikedImages] = useState<string[]>([]);
   const [viewingLikes, setViewingLikes] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isThemeEditorOpen, setIsThemeEditorOpen] = useState(false);
+
+  // States for Jikan Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, startSearchTransition] = useTransition();
+  const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
   
   const apiSource = apiSources[apiSourceKey];
   
-  // Restore non-sensitive settings from localStorage
   useEffect(() => {
     const storedApiSource = localStorage.getItem("apiSourceKey");
     if (storedApiSource && apiSources[storedApiSource]) {
       setApiSourceKey(storedApiSource);
     }
-    // Note: isNsfw is intentionally not stored/restored
   }, []);
   
-  // Persist apiSourceKey on change
   useEffect(() => {
     localStorage.setItem("apiSourceKey", apiSourceKey);
   }, [apiSourceKey]);
@@ -96,6 +106,24 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Effect for Jikan search debouncing
+  useEffect(() => {
+    if (apiSourceKey !== 'jikan' || searchQuery.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      startSearchTransition(async () => {
+        const results = await searchAnime(searchQuery);
+        setSearchResults(results);
+        if (results.length > 0) {
+          setIsSearchPopoverOpen(true);
+        }
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, apiSourceKey]);
+
   useEffect(() => {
     async function getTags() {
       setGalleryImages([]);
@@ -103,18 +131,22 @@ export default function Home() {
       setSfwCategories([]);
       setNsfwCategories([]);
       setPage(1);
+      setSearchQuery("");
+      setSearchResults([]);
 
       const { sfw, nsfw } = await apiSource.getTags();
       setSfwCategories(sfw);
       setNsfwCategories(nsfw);
 
-      let currentList = sfw;
-      if (isNsfw && apiSource.hasNsfw) {
-        currentList = nsfw;
-      }
+      if (apiSourceKey !== 'jikan') {
+        let currentList = sfw;
+        if (isNsfw && apiSource.hasNsfw) {
+          currentList = nsfw;
+        }
 
-      if (currentList.length > 0) {
-        setActiveCategory(currentList[0]);
+        if (currentList.length > 0) {
+          setActiveCategory(currentList[0]);
+        }
       }
     }
     getTags();
@@ -176,7 +208,7 @@ export default function Home() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          if (!isGenerating && galleryImages.length > 0 && !viewingLikes) {
+          if (!isGenerating && galleryImages.length > 0 && !viewingLikes && apiSourceKey !== 'jikan') {
             fetchAndSetGallery(false);
           }
         }
@@ -194,9 +226,11 @@ export default function Home() {
         observer.unobserve(currentRef);
       }
     };
-  }, [isGenerating, galleryImages.length, fetchAndSetGallery, viewingLikes]);
+  }, [isGenerating, galleryImages.length, fetchAndSetGallery, viewingLikes, apiSourceKey]);
 
   useEffect(() => {
+    if (apiSourceKey === 'jikan') return;
+
     const currentList =
       isNsfw && apiSource.hasNsfw ? nsfwCategories : sfwCategories;
     if (currentList.length > 0 && !currentList.includes(activeCategory)) {
@@ -372,56 +406,113 @@ export default function Home() {
                 <Separator />
 
                 <div className="flex-1 w-full">
-                  <ScrollArea className="w-full">
-                    <div className="flex items-center gap-2 pb-2">
-                      <Button
-                        key="likes"
-                        variant={viewingLikes ? "secondary" : "outline"}
-                        onClick={() => setViewingLikes(!viewingLikes)}
-                        className="justify-start shrink-0 h-9"
-                      >
-                        <Heart
-                          className={`mr-2 h-4 w-4 ${
-                            likedImages.length > 0
-                              ? "text-red-500 fill-current"
-                              : ""
-                          }`}
-                        />
-                        My Likes ({likedImages.length})
-                      </Button>
-
-                      <Separator orientation="vertical" className="h-6 mx-1" />
-
-                      {currentCategories.length > 0 ? (
-                        currentCategories.map((cat) => (
-                          <Button
-                            key={cat}
-                            variant={
-                              activeCategory === cat && !viewingLikes
-                                ? "secondary"
-                                : "outline"
-                            }
-                            onClick={() => {
-                              setActiveCategory(cat);
-                              setViewingLikes(false);
-                            }}
-                            className="justify-start capitalize shrink-0 h-9"
-                          >
-                            {cat.replace(/_/g, " ")}
-                          </Button>
-                        ))
-                      ) : (
-                        !viewingLikes &&
-                        Array.from({ length: 10 }).map((_, i) => (
-                          <Skeleton
-                            key={i}
-                            className="h-9 w-24 rounded-md"
-                          />
-                        ))
-                      )}
+                  {apiSourceKey === 'jikan' ? (
+                     <div className="flex items-center gap-2 pb-2">
+                        <Button
+                            key="likes"
+                            variant={viewingLikes ? "secondary" : "outline"}
+                            onClick={() => setViewingLikes(!viewingLikes)}
+                            className="justify-start shrink-0 h-9"
+                        >
+                            <Heart className={`mr-2 h-4 w-4 ${likedImages.length > 0 ? "text-red-500 fill-current" : ""}`} />
+                            My Likes ({likedImages.length})
+                        </Button>
+                        <Separator orientation="vertical" className="h-6 mx-1" />
+                        <Popover open={isSearchPopoverOpen} onOpenChange={setIsSearchPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <div className="relative w-full max-w-sm">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Search for an anime..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9"
+                                disabled={viewingLikes}
+                              />
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            {isSearching && <div className="p-4 text-sm text-center">Searching...</div>}
+                            {searchResults.length > 0 && !isSearching && (
+                              <ScrollArea className="max-h-72">
+                                <div className="flex flex-col gap-1 p-1">
+                                  {searchResults.map((anime) => (
+                                    <Button
+                                      key={anime.mal_id}
+                                      variant="ghost"
+                                      className="w-full h-auto justify-start text-left py-2 px-3"
+                                      onClick={() => {
+                                        setActiveCategory(String(anime.mal_id));
+                                        setSearchQuery(anime.title);
+                                        setIsSearchPopoverOpen(false);
+                                        setSearchResults([]);
+                                        setViewingLikes(false);
+                                      }}
+                                    >
+                                      {anime.title}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            )}
+                            {searchResults.length === 0 && !isSearching && searchQuery.length > 2 && (
+                              <div className="p-4 text-center text-sm text-muted-foreground">No results found.</div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
                     </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                  ) : (
+                    <ScrollArea className="w-full">
+                      <div className="flex items-center gap-2 pb-2">
+                        <Button
+                          key="likes"
+                          variant={viewingLikes ? "secondary" : "outline"}
+                          onClick={() => setViewingLikes(!viewingLikes)}
+                          className="justify-start shrink-0 h-9"
+                        >
+                          <Heart
+                            className={`mr-2 h-4 w-4 ${
+                              likedImages.length > 0
+                                ? "text-red-500 fill-current"
+                                : ""
+                            }`}
+                          />
+                          My Likes ({likedImages.length})
+                        </Button>
+
+                        <Separator orientation="vertical" className="h-6 mx-1" />
+
+                        {currentCategories.length > 0 ? (
+                          currentCategories.map((cat) => (
+                            <Button
+                              key={cat}
+                              variant={
+                                activeCategory === cat && !viewingLikes
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                              onClick={() => {
+                                setActiveCategory(cat);
+                                setViewingLikes(false);
+                              }}
+                              className="justify-start capitalize shrink-0 h-9"
+                            >
+                              {cat.replace(/_/g, " ")}
+                            </Button>
+                          ))
+                        ) : (
+                          !viewingLikes &&
+                          Array.from({ length: 10 }).map((_, i) => (
+                            <Skeleton
+                              key={i}
+                              className="h-9 w-24 rounded-md"
+                            />
+                          ))
+                        )}
+                      </div>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  )}
                 </div>
               </div>
             </div>
@@ -491,10 +582,14 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground bg-card rounded-lg w-full">
                 <ImageIcon className="w-16 h-16 mb-4 text-muted-foreground/30" />
                 <p className="text-center text-foreground/70">
-                  {viewingLikes ? "You haven't liked any images yet." : "It's empty in here..."}
+                  {apiSourceKey === 'jikan' && !viewingLikes ? "Search for an anime to see images." :
+                   viewingLikes ? "You haven't liked any images yet." : 
+                   "It's empty in here..."}
                 </p>
                 <p className="text-center text-muted-foreground text-sm">
-                  {viewingLikes ? "Click the heart on an image to save it here." : "Select a category to get the party started."}
+                  {viewingLikes ? "Click the heart on an image to save it here." : 
+                   apiSourceKey === 'jikan' ? "Start typing in the search bar above." : 
+                   "Select a category to get the party started."}
                 </p>
               </div>
             )}
