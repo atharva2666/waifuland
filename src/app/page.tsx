@@ -86,6 +86,7 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
+  const isTypingSearch = useRef(false);
   
   const apiSource = apiSources[apiSourceKey];
   
@@ -115,8 +116,9 @@ export default function Home() {
 
   // Effect for Jikan search debouncing
   useEffect(() => {
-    if (apiSourceKey !== 'jikan' || searchQuery.length < 3) {
+    if (apiSourceKey !== 'jikan' || searchQuery.length < 3 || !isTypingSearch.current) {
       setSearchResults([]);
+      if (isTypingSearch.current) setIsSearchPopoverOpen(false);
       return;
     }
     const timer = setTimeout(() => {
@@ -125,6 +127,8 @@ export default function Home() {
         setSearchResults(results);
         if (results.length > 0) {
           setIsSearchPopoverOpen(true);
+        } else {
+          setIsSearchPopoverOpen(false);
         }
       });
     }, 300);
@@ -153,6 +157,14 @@ export default function Home() {
 
         if (currentList.length > 0) {
           setActiveCategory(currentList[0]);
+        }
+      } else {
+        // Set default for Jikan
+        const defaultPreset = jikanPresets.find(p => p.name === "AOT");
+        if (defaultPreset) {
+            isTypingSearch.current = false;
+            setActiveCategory(defaultPreset.id);
+            setSearchQuery(defaultPreset.name);
         }
       }
     }
@@ -307,6 +319,7 @@ export default function Home() {
   };
 
   const handlePresetClick = (preset: { name: string; id: string }) => {
+      isTypingSearch.current = false;
       setViewingLikes(false);
       setActiveCategory(preset.id);
       setSearchQuery(preset.name);
@@ -450,7 +463,10 @@ export default function Home() {
                                 <Input
                                   placeholder="Or search for another anime..."
                                   value={searchQuery}
-                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  onChange={(e) => {
+                                    isTypingSearch.current = true;
+                                    setSearchQuery(e.target.value);
+                                  }}
                                   className="pl-9"
                                   disabled={viewingLikes}
                                 />
@@ -467,6 +483,7 @@ export default function Home() {
                                         variant="ghost"
                                         className="w-full h-auto justify-start text-left py-2 px-3"
                                         onClick={() => {
+                                          isTypingSearch.current = false;
                                           setActiveCategory(String(anime.mal_id));
                                           setSearchQuery(anime.title);
                                           setIsSearchPopoverOpen(false);
