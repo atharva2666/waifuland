@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: svgFavicon,
+    shortcut: svgFavicon,
+    apple: svgFavicon,
   },
 };
 
