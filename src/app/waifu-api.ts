@@ -25,39 +25,67 @@ const jikanApi: ImageApiSource = {
     return Promise.resolve({ sfw: [], nsfw: [] });
   },
   async getImages(params) {
-    // The 'category' param now holds the anime ID from the search selection.
     const { category: animeId, page } = params;
     if (!animeId) {
-      return { success: true, images: [] }; // Don't show an error if no anime is selected yet
+      return { success: true, images: [] };
     }
 
-    // The /pictures endpoint is not paginated. To prevent infinite scroll
-    // from making repeated calls, only fetch on the first "page".
+    // This combined fetch is expensive, so only do it once on the initial load.
     if (page > 1) {
       return { success: true, images: [], message: 'End of results.' };
     }
 
-    const url = `https://api.jikan.moe/v4/anime/${animeId}/pictures`;
-
     try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (!response.ok) {
-        // Jikan might 404 if an anime ID is invalid or has no pictures.
-        // Treat this as "no images found" instead of a hard error.
-        if (response.status === 404) {
-            return { success: true, images: [], message: 'No images found for this anime.' };
-        }
-        throw new Error(`API Error: ${response.statusText} (${response.status})`);
-      }
-      const data = await response.json();
-      
-      const imageUrls = data.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url).filter(Boolean) || [];
+      let allImageUrls: string[] = [];
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-      if (imageUrls.length === 0) {
+      // 1. Fetch general anime pictures
+      const animePicturesUrl = `https://api.jikan.moe/v4/anime/${animeId}/pictures`;
+      const animePicturesResponse = await fetch(animePicturesUrl, { cache: 'no-store' });
+      if (animePicturesResponse.ok) {
+        const animePicturesData = await animePicturesResponse.json();
+        const urls = animePicturesData.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url).filter(Boolean) || [];
+        allImageUrls.push(...urls);
+      } else if (animePicturesResponse.status !== 404) {
+         console.error(`Jikan API error for anime pictures: ${animePicturesResponse.status}`);
+      }
+
+      // 2. Fetch characters
+      const charactersUrl = `https://api.jikan.moe/v4/anime/${animeId}/characters`;
+      const charactersResponse = await fetch(charactersUrl, { cache: 'no-store' });
+      
+      if (charactersResponse.ok) {
+        const charactersData = await charactersResponse.json();
+        const characters = charactersData.data?.slice(0, 15) || []; // Limit to top 15 characters to avoid excessive calls
+
+        // 3. Fetch pictures for each character, respecting rate limits
+        for (const char of characters) {
+            const characterId = char.character.mal_id;
+            if (characterId) {
+                // To be safe with rate limits (3 requests/sec), wait ~350ms between calls
+                await sleep(350); 
+                const charPicturesUrl = `https://api.jikan.moe/v4/characters/${characterId}/pictures`;
+                const charPicturesResponse = await fetch(charPicturesUrl, { cache: 'no-store' });
+                if (charPicturesResponse.ok) {
+                    const charPicturesData = await charPicturesResponse.json();
+                    const urls = charPicturesData.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url).filter(Boolean) || [];
+                    allImageUrls.push(...urls);
+                } else if (charPicturesResponse.status !== 404) {
+                    console.error(`Jikan API error for character ${characterId} pictures: ${charPicturesResponse.status}`);
+                }
+            }
+        }
+      } else if (charactersResponse.status !== 404) {
+          console.error(`Jikan API error for characters list: ${charactersResponse.status}`);
+      }
+
+      if (allImageUrls.length === 0) {
         return { success: true, images: [], message: 'No images found for this anime.' };
       }
-      
-      return { success: true, images: [...new Set(imageUrls)] };
+
+      // Remove duplicates and return
+      return { success: true, images: [...new Set(allImageUrls)] };
+
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred.';
       console.error("Jikan getImages error:", message);
