@@ -39,7 +39,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ImageViewer } from "@/components/image-viewer";
-import { ThemeCustomizer } from "@/components/theme-customizer";
 import { searchAnime } from "./actions";
 import {
   Popover,
@@ -48,6 +47,15 @@ import {
 } from "@/components/ui/popover";
 
 const IMAGE_FETCH_COUNT = 30;
+
+// Jikan Presets
+const jikanPresets = [
+    { name: "Naruto", id: "20" },
+    { name: "JJK", id: "40748" },
+    { name: "DBZ", id: "813" },
+    { name: "Death Note", id: "1535" },
+    { name: "AOT", id: "16498" },
+];
 
 export default function Home() {
   const [apiSourceKey, setApiSourceKey] = useState('jikan');
@@ -72,7 +80,6 @@ export default function Home() {
   const [viewingLikes, setViewingLikes] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [isThemeEditorOpen, setIsThemeEditorOpen] = useState(false);
 
   // States for Jikan Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -271,12 +278,6 @@ export default function Home() {
         title: "Access Granted",
         description: "Secret mode unlocked.",
       });
-    } else if (password.toLowerCase() === 'theme') {
-      setIsThemeEditorOpen(true);
-      toast({
-        title: "Theme Editor Unlocked",
-        description: "Time to get creative.",
-      });
     } else {
       toast({
         variant: "destructive",
@@ -303,6 +304,14 @@ export default function Home() {
 
   const closeImageViewer = () => {
     setIsViewerOpen(false);
+  };
+
+  const handlePresetClick = (preset: { name: string; id: string }) => {
+      setViewingLikes(false);
+      setActiveCategory(preset.id);
+      setSearchQuery(preset.name);
+      setIsSearchPopoverOpen(false);
+      setSearchResults([]);
   };
   
   const currentCategories =
@@ -407,59 +416,76 @@ export default function Home() {
 
                 <div className="flex-1 w-full">
                   {apiSourceKey === 'jikan' ? (
-                     <div className="flex items-center gap-2 pb-2">
-                        <Button
-                            key="likes"
-                            variant={viewingLikes ? "secondary" : "outline"}
-                            onClick={() => setViewingLikes(!viewingLikes)}
-                            className="justify-start shrink-0 h-9"
-                        >
-                            <Heart className={`mr-2 h-4 w-4 ${likedImages.length > 0 ? "text-red-500 fill-current" : ""}`} />
-                            My Likes ({likedImages.length})
-                        </Button>
-                        <Separator orientation="vertical" className="h-6 mx-1" />
-                        <Popover open={isSearchPopoverOpen} onOpenChange={setIsSearchPopoverOpen}>
-                          <PopoverTrigger asChild>
-                            <div className="relative w-full max-w-sm">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                placeholder="Search for an anime..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9"
-                                disabled={viewingLikes}
-                              />
-                            </div>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            {isSearching && <div className="p-4 text-sm text-center">Searching...</div>}
-                            {searchResults.length > 0 && !isSearching && (
-                              <ScrollArea className="max-h-72">
-                                <div className="flex flex-col gap-1 p-1">
-                                  {searchResults.map((anime) => (
-                                    <Button
-                                      key={anime.mal_id}
-                                      variant="ghost"
-                                      className="w-full h-auto justify-start text-left py-2 px-3"
-                                      onClick={() => {
-                                        setActiveCategory(String(anime.mal_id));
-                                        setSearchQuery(anime.title);
-                                        setIsSearchPopoverOpen(false);
-                                        setSearchResults([]);
-                                        setViewingLikes(false);
-                                      }}
-                                    >
-                                      {anime.title}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            )}
-                            {searchResults.length === 0 && !isSearching && searchQuery.length > 2 && (
-                              <div className="p-4 text-center text-sm text-muted-foreground">No results found.</div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
+                     <div className="w-full">
+                        <ScrollArea className="w-full">
+                          <div className="flex items-center gap-2 pb-2">
+                            <Button
+                                key="likes"
+                                variant={viewingLikes ? "secondary" : "outline"}
+                                onClick={() => setViewingLikes(!viewingLikes)}
+                                className="justify-start shrink-0 h-9"
+                            >
+                                <Heart className={`mr-2 h-4 w-4 ${likedImages.length > 0 ? "text-red-500 fill-current" : ""}`} />
+                                My Likes ({likedImages.length})
+                            </Button>
+                            <Separator orientation="vertical" className="h-6 mx-1" />
+                             {jikanPresets.map((preset) => (
+                                <Button
+                                  key={preset.id}
+                                  variant={ activeCategory === preset.id && !viewingLikes ? "secondary" : "outline" }
+                                  onClick={() => handlePresetClick(preset)}
+                                  className="justify-start shrink-0 h-9"
+                                >
+                                  {preset.name}
+                                </Button>
+                              ))}
+                          </div>
+                          <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                        <div className="flex items-center gap-2 pt-2">
+                          <Popover open={isSearchPopoverOpen} onOpenChange={setIsSearchPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <div className="relative w-full max-w-sm">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  placeholder="Or search for another anime..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="pl-9"
+                                  disabled={viewingLikes}
+                                />
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                              {isSearching && <div className="p-4 text-sm text-center">Searching...</div>}
+                              {searchResults.length > 0 && !isSearching && (
+                                <ScrollArea className="max-h-72">
+                                  <div className="flex flex-col gap-1 p-1">
+                                    {searchResults.map((anime) => (
+                                      <Button
+                                        key={anime.mal_id}
+                                        variant="ghost"
+                                        className="w-full h-auto justify-start text-left py-2 px-3"
+                                        onClick={() => {
+                                          setActiveCategory(String(anime.mal_id));
+                                          setSearchQuery(anime.title);
+                                          setIsSearchPopoverOpen(false);
+                                          setSearchResults([]);
+                                          setViewingLikes(false);
+                                        }}
+                                      >
+                                        {anime.title}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              )}
+                              {searchResults.length === 0 && !isSearching && searchQuery.length > 2 && (
+                                <div className="p-4 text-center text-sm text-muted-foreground">No results found.</div>
+                              )}
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                     </div>
                   ) : (
                     <ScrollArea className="w-full">
@@ -588,7 +614,7 @@ export default function Home() {
                 </p>
                 <p className="text-center text-muted-foreground text-sm">
                   {viewingLikes ? "Click the heart on an image to save it here." : 
-                   apiSourceKey === 'jikan' ? "Start typing in the search bar above." : 
+                   apiSourceKey === 'jikan' ? "Select a preset or use the search bar above." : 
                    "Select a category to get the party started."}
                 </p>
               </div>
@@ -630,8 +656,6 @@ export default function Home() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        <ThemeCustomizer isOpen={isThemeEditorOpen} onOpenChange={setIsThemeEditorOpen} />
 
         {showBackToTop && (
           <Button
