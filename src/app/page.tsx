@@ -45,7 +45,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { LoadingScreen } from "@/components/loading-screen";
 
 const IMAGE_FETCH_COUNT = 30;
 
@@ -88,7 +87,6 @@ export default function Home() {
   const [isSearching, startSearchTransition] = useTransition();
   const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
   const isTypingSearch = useRef(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
   
   const apiSource = apiSources[apiSourceKey];
   
@@ -139,7 +137,6 @@ export default function Home() {
 
   useEffect(() => {
     async function getTags() {
-      setIsInitialLoading(true);
       setGalleryImages([]);
       setActiveCategory("");
       setSfwCategories([]);
@@ -170,7 +167,6 @@ export default function Home() {
             setSearchQuery(defaultPreset.name);
         }
       }
-      setIsInitialLoading(false);
     }
     getTags();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,7 +334,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full font-body">
-      {isInitialLoading && <LoadingScreen />}
       <main className="w-full p-4 sm:p-6 md:p-8">
         <div className="w-full max-w-7xl mx-auto flex flex-col">
           <div className="text-center mb-8">
