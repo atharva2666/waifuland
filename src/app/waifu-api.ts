@@ -12,10 +12,61 @@ export interface ImageApiSource {
     count: number;
     page: number;
     sort?: string;
+    onProgress?: (images: string[]) => void;
   }) => Promise<{ success: boolean; images: string[]; message?: string }>;
 }
 
 // --- Jikan Implementation ---
+
+async function fetchJikanCharacterImages(animeId: string, onProgress: (images: string[]) => void) {
+    try {
+        const charactersResponse = await fetch(`https://api.jikan.moe/v4/anime/${animeId}/characters`, { cache: 'no-store' });
+        if (!charactersResponse.ok) return;
+        
+        const charactersData = await charactersResponse.json();
+        const characters = charactersData.data?.slice(0, 15) || [];
+
+        if (characters.length > 0) {
+            const characterChunks = [];
+            const chunkSize = 3; 
+
+            for (let i = 0; i < characters.length; i += chunkSize) {
+                characterChunks.push(characters.slice(i, i + chunkSize));
+            }
+
+            for (const chunk of characterChunks) {
+                const chunkPromises = chunk.map(char => {
+                    const characterId = char.character.mal_id;
+                    if (!characterId) return Promise.resolve([]);
+                    
+                    const charPicturesUrl = `https://api.jikan.moe/v4/characters/${characterId}/pictures`;
+                    return fetch(charPicturesUrl, { cache: 'no-store' })
+                        .then(res => res.ok ? res.json() : Promise.resolve({ data: [] }))
+                        .then(charPicturesData => 
+                            charPicturesData.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url) || []
+                        )
+                        .catch(e => {
+                            console.error(`Jikan: Failed to fetch pictures for character ${characterId}`, e);
+                            return [];
+                        });
+                });
+
+                const imagesFromChunk = (await Promise.all(chunkPromises)).flat().filter(Boolean);
+                if (imagesFromChunk.length > 0) {
+                  onProgress(imagesFromChunk);
+                }
+                
+                if (characterChunks.indexOf(chunk) < characterChunks.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1100)); 
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Jikan: Failed during background character image fetch", error);
+    }
+}
+
+
 const jikanApi: ImageApiSource = {
   name: 'Jikan',
   hasNsfw: false,
@@ -25,84 +76,37 @@ const jikanApi: ImageApiSource = {
     return Promise.resolve({ sfw: [], nsfw: [] });
   },
   async getImages(params) {
-    const { category: animeId, page } = params;
+    const { category: animeId, page, onProgress } = params;
     if (!animeId) {
       return { success: true, images: [] };
     }
 
-    // This combined fetch is expensive, so only do it once on the initial load.
+    // Jikan does not support pagination in this custom implementation,
+    // so we only fetch on the first "page".
     if (page > 1) {
       return { success: true, images: [], message: 'End of results.' };
     }
 
     try {
-        const allImageUrls = new Set<string>();
-        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-        const addUrls = (urls: (string | null | undefined)[]) => {
-            for (const url of urls) {
-                if (url) allImageUrls.add(url);
-            }
-        };
-
-        // 1. Fetch general anime pictures and character list in parallel
-        const animePicturesPromise = fetch(`https://api.jikan.moe/v4/anime/${animeId}/pictures`, { cache: 'no-store' })
-            .then(res => res.ok ? res.json() : Promise.resolve({ data: [] }))
-            .then(data => addUrls(data.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url) || []))
-            .catch(e => console.error("Jikan: Failed to fetch anime pictures", e));
-
-        const charactersPromise = fetch(`https://api.jikan.moe/v4/anime/${animeId}/characters`, { cache: 'no-store' })
-            .then(res => res.ok ? res.json() : Promise.resolve({ data: [] }))
-            .then(data => data.data?.slice(0, 15) || [])
-            .catch(e => {
-                console.error("Jikan: Failed to fetch characters list", e);
-                return [];
-            });
-        
-        const [_, characters] = await Promise.all([
-            animePicturesPromise,
-            charactersPromise
-        ]);
-
-        // 3. Fetch pictures for characters in parallel batches to respect rate limits
-        if (characters && characters.length > 0) {
-            const characterChunks = [];
-            const chunkSize = 3; // Jikan API rate limit is ~3 req/sec
-
-            for (let i = 0; i < characters.length; i += chunkSize) {
-                characterChunks.push(characters.slice(i, i + chunkSize));
-            }
-
-            for (const chunk of characterChunks) {
-                const chunkPromises = chunk.map(char => {
-                    const characterId = char.character.mal_id;
-                    if (!characterId) return Promise.resolve();
-                    
-                    const charPicturesUrl = `https://api.jikan.moe/v4/characters/${characterId}/pictures`;
-                    return fetch(charPicturesUrl, { cache: 'no-store' })
-                        .then(res => res.ok ? res.json() : Promise.resolve({ data: [] }))
-                        .then(charPicturesData => {
-                            addUrls(charPicturesData.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url) || []);
-                        })
-                        .catch(e => console.error(`Jikan: Failed to fetch pictures for character ${characterId}`, e));
-                });
-
-                await Promise.all(chunkPromises);
-                
-                // Don't sleep after the last chunk
-                if (characterChunks.indexOf(chunk) < characterChunks.length - 1) {
-                    await sleep(1100); // Wait a bit over a second before the next batch
-                }
-            }
+        const animePicturesResponse = await fetch(`https://api.jikan.moe/v4/anime/${animeId}/pictures`, { cache: 'no-store' });
+        if (!animePicturesResponse.ok) {
+            // If the initial fetch fails, we can't proceed.
+            return { success: false, images: [], message: `API error: ${animePicturesResponse.statusText}` };
         }
         
-        const finalImages = Array.from(allImageUrls);
+        const animePicturesData = await animePicturesResponse.json();
+        const initialImages = animePicturesData.data?.map((pic: any) => pic.jpg.large_image_url || pic.jpg.image_url).filter(Boolean) || [];
 
-        if (finalImages.length === 0) {
-            return { success: true, images: [], message: 'No images found for this anime.' };
+        // Fire and forget the background fetch for character images.
+        if (onProgress) {
+            fetchJikanCharacterImages(animeId, onProgress);
         }
 
-        return { success: true, images: finalImages };
+        if (initialImages.length === 0 && onProgress === undefined) {
+             return { success: true, images: [], message: 'No images found for this anime.' };
+        }
+
+        return { success: true, images: initialImages };
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred.';

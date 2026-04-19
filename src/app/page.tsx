@@ -173,7 +173,7 @@ export default function Home() {
   }, [apiSourceKey]);
 
   const fetchAndSetGallery = useCallback(
-    async (isNewSearch = false) => {
+    (isNewSearch = false) => {
       if (viewingLikes || !activeCategory) return;
       if (!isNewSearch && isGenerating) return;
 
@@ -182,6 +182,12 @@ export default function Home() {
         if (isNewSearch) {
           setGalleryImages([]);
         }
+        
+        const onProgressCallback = (newImages: string[]) => {
+          if (newImages.length > 0) {
+            setGalleryImages((prev) => [...new Set([...prev, ...newImages])]);
+          }
+        };
 
         const result = await apiSource.getImages({
           category: activeCategory,
@@ -189,6 +195,7 @@ export default function Home() {
           count: IMAGE_FETCH_COUNT,
           page: currentPage,
           sort: apiSource.sortingSupported ? sortOrder : undefined,
+          onProgress: apiSource.name === 'Jikan' ? onProgressCallback : undefined,
         });
 
         if (result.success) {
