@@ -55,6 +55,9 @@ const jikanPresets = [
     { name: "DBZ", id: "813" },
     { name: "Death Note", id: "1535" },
     { name: "AOT", id: "16498" },
+    { name: "One Piece", id: "21" },
+    { name: "Bleach", id: "269" },
+    { name: "FMAB", id: "5114" },
 ];
 
 export default function Home() {
@@ -73,6 +76,7 @@ export default function Home() {
 
   const [showBackToTop, setShowBackToTop] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const jikanFetchId = useRef(0);
   const [page, setPage] = useState(1);
 
   // States for sorting, likes, and viewer
@@ -180,6 +184,13 @@ export default function Home() {
       if (viewingLikes || !activeCategory) return;
       if (!isNewSearch && isGenerating) return;
 
+      const isJikanNewSearch = isNewSearch && apiSource.name === 'Jikan';
+      let fetchId = 0;
+      if (isJikanNewSearch) {
+        jikanFetchId.current += 1;
+        fetchId = jikanFetchId.current;
+      }
+
       startGenerating(async () => {
         const currentPage = isNewSearch ? 1 : page;
         if (isNewSearch) {
@@ -187,6 +198,9 @@ export default function Home() {
         }
         
         const onProgressCallback = (newImages: string[]) => {
+          if (isJikanNewSearch && jikanFetchId.current !== fetchId) {
+            return;
+          }
           if (newImages.length > 0) {
             startStreaming(() => {
               setGalleryImages((prev) => [...new Set([...prev, ...newImages])]);
@@ -296,7 +310,7 @@ export default function Home() {
   };
 
   const handlePasswordSubmit = () => {
-    if (password.toLowerCase() === "nsfw") {
+    if (password.toLowerCase() === "schoolclub") {
       setIsNsfw(true);
       toast({
         title: "Access Granted",

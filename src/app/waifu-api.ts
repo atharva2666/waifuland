@@ -24,7 +24,7 @@ async function fetchJikanCharacterImages(animeId: string, onProgress: (images: s
         if (!charactersResponse.ok) return;
         
         const charactersData = await charactersResponse.json();
-        const characters = charactersData.data?.slice(0, 15) || [];
+        const characters = charactersData.data || [];
 
         if (characters.length > 0) {
             const characterChunks = [];
