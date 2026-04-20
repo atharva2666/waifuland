@@ -310,7 +310,7 @@ export default function Home() {
   };
 
   const handlePasswordSubmit = () => {
-    if (password.toLowerCase() === "schoolclub") {
+    if (password.toLowerCase() === "olivia") {
       setIsNsfw(true);
       toast({
         title: "Access Granted",
